@@ -98,9 +98,25 @@ jobs:
       - name: Build the app
         run: npx electron-vite build
 
-      # Electron needs a display even to open an offscreen window.
+      # `safeStorage` needs a real secret service, and a bare runner has none.
+      # Without it the app cannot persist an API key, so every spec that
+      # restarts and expects to still be configured fails — correctly, but it
+      # means the normal path would never be exercised in CI.
+      - name: Install a secret service
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnome-keyring libsecret-1-0 dbus-x11
+
+      # xvfb for the display Electron needs even offscreen; dbus-run-session so
+      # the keyring daemon has a bus to sit on; the empty password unlocks a
+      # throwaway keyring created just for this run.
       - name: Run e2e
-        run: xvfb-run --auto-servernum npx playwright test
+        run: |
+          xvfb-run --auto-servernum dbus-run-session -- bash -c '
+            eval "$(printf "\n" | gnome-keyring-daemon --unlock --components=secrets)"
+            export GNOME_KEYRING_CONTROL
+            npx playwright test
+          '
 
       - name: Upload traces and screenshots
         # A red CI run you cannot see is worse than none.

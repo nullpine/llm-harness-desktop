@@ -11,7 +11,15 @@ import { join, relative } from 'node:path'
 
 import { IPC } from '@shared/ipc'
 
-import { configure, expect, send, test, waitForState } from './fixtures/app'
+import {
+  configure,
+  expect,
+  launchApp,
+  openSettings,
+  send,
+  test,
+  waitForState,
+} from './fixtures/app'
 
 /** Every file under `dir`, recursively — the `grep -r` of acceptance A8. */
 function walk(dir: string): string[] {
@@ -192,4 +200,39 @@ test('the strict CSP is in force in the built app', async ({ appHandle }) => {
     }
   })
   expect(result).toBe('blocked')
+})
+
+test('a machine with no credential store warns, but does not trap the user', async ({ mock }) => {
+  // What a headless Linux runner looks like. Before this the app refused to
+  // close Settings at all, so it was unusable on such a machine — and every e2e
+  // spec that configured the app failed there.
+  const app = await launchApp({ env: { HARNESS_FORCE_NO_KEYRING: '1' } })
+  try {
+    await configure(app.window, mock.url, mock.apiKey)
+
+    // Settings closed, the app is configured, and the warning is visible.
+    await expect(app.window.getByRole('dialog', { name: 'Settings' })).toBeHidden()
+    await waitForState(app.window, 'ready')
+
+    await openSettings(app.window)
+    await expect(app.window.locator('[data-testid="key-warning"]')).toContainText('quit')
+  } finally {
+    await app.close()
+  }
+})
+
+test('the key is still not written to disk when there is no credential store', async ({ mock }) => {
+  const key = 'hk_live_no_keyring_e2e_0123456789'
+  const app = await launchApp({ env: { HARNESS_FORCE_NO_KEYRING: '1' } })
+  try {
+    await configure(app.window, mock.url, key)
+
+    const utf8 = Buffer.from(key, 'utf8')
+    const leaks = walk(app.userDataDir)
+      .filter((path) => readFileSync(path).includes(utf8))
+      .map((path) => relative(app.userDataDir, path))
+    expect(leaks, 'the key was written in plaintext').toEqual([])
+  } finally {
+    await app.close()
+  }
 })

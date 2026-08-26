@@ -38,7 +38,13 @@ async function main(): Promise<void> {
   })
   const secrets = new SecretStore({
     directory: userData,
-    safeStorage,
+    // A headless Linux runner has no keyring, and that path used to trap the
+    // user in Settings. This env var reproduces it anywhere, so the case is
+    // testable off a CI runner. Test-only: nothing in the app ever sets it.
+    safeStorage:
+      process.env.HARNESS_FORCE_NO_KEYRING === '1'
+        ? { ...safeStorage, isEncryptionAvailable: () => false }
+        : safeStorage,
     onWarn: (message, meta) => logger.warn(message, meta),
   })
   const conversations = new ConversationStore({

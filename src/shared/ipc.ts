@@ -99,6 +99,21 @@ export interface ChatErrorEvent {
   message: string
 }
 
+/**
+ * The outcome of storing an API key.
+ *
+ * `persisted: false` is a **warning, not a failure**: some Linux desktops have no
+ * keyring, and rather than writing the key in plaintext the app keeps it in
+ * memory for the session. Treating that as an error left the user unable to
+ * close Settings at all — stuck in a modal on a machine where the app would
+ * otherwise work perfectly well until quit.
+ */
+export interface SetApiKeyResult {
+  ok: true
+  persisted: boolean
+  warning?: string
+}
+
 export interface LogsRequest {
   source: 'vllm' | 'control'
   lines: number
@@ -111,7 +126,7 @@ export interface LogsRequest {
 export interface IpcInvoke {
   [IPC.settingsGet]: [void, Settings]
   [IPC.settingsSet]: [Partial<Settings>, Settings]
-  [IPC.settingsSetApiKey]: [{ key: string }, { ok: true }]
+  [IPC.settingsSetApiKey]: [{ key: string }, SetApiKeyResult]
   [IPC.serverTest]: [void, ServerTestResult]
   [IPC.modelsList]: [void, ModelCatalog]
   [IPC.modelsActivate]: [{ modelId: string }, ActivateResult]

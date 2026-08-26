@@ -18,6 +18,7 @@ import type {
   ChatErrorEvent,
   LogsRequest,
   Result,
+  SetApiKeyResult,
   ServerTestResult,
 } from '@shared/ipc'
 import type {
@@ -41,7 +42,7 @@ export interface HarnessApi {
      * Send the key *to* main. There is deliberately no way to read it back —
      * `Settings.hasApiKey` is all the renderer ever learns (CLAUDE.md rule 3).
      */
-    setApiKey(key: string): Promise<Result<{ ok: true }>>
+    setApiKey(key: string): Promise<Result<SetApiKeyResult>>
   }
   readonly server: {
     test(): Promise<Result<ServerTestResult>>

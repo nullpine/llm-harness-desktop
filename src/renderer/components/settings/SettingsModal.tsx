@@ -43,6 +43,15 @@ export function SettingsModal({ onClose, dismissable, firstRun }: SettingsModalP
   const [testResult, setTestResult] = useState<ServerTestResult | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // Derived from the machine's state, not from what the last save returned: a
+  // warning stored in local state is discarded the moment Save closes the modal,
+  // so nobody ever reads it.
+  const keyWarning =
+    settings.hasApiKey && !settings.credentialStoreAvailable
+      ? 'This system has no secure credential store, so the key is kept in memory only. ' +
+        'It will work until you quit, then you will need to enter it again.'
+      : null
+
   const urlValidation = validateServerUrl(draft.serverUrl)
   const canSave = urlValidation.valid && !saving
 
@@ -79,6 +88,9 @@ export function SettingsModal({ onClose, dismissable, firstRun }: SettingsModalP
         setSaveError(keyResult.message ?? 'The key could not be saved.')
         return
       }
+      // A key that could not be persisted still works for this session, so the
+      // user is let through rather than trapped in the modal. The warning above
+      // renders from `credentialStoreAvailable` whenever Settings is open.
       setApiKeyDraft(null)
     }
     const saved = await save({
@@ -118,6 +130,15 @@ export function SettingsModal({ onClose, dismissable, firstRun }: SettingsModalP
         </>
       }
     >
+      {keyWarning ? (
+        <p
+          data-testid="key-warning"
+          className="mb-4 rounded-md border border-[var(--color-danger)] px-3 py-2 text-sm text-[var(--color-text-muted)]"
+        >
+          {keyWarning}
+        </p>
+      ) : null}
+
       {firstRun ? (
         <p className="mb-4 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-overlay)] px-3 py-2 text-sm text-[var(--color-text-muted)]">
           Point this at your harness server to get started. Paste the URL and the API key it
