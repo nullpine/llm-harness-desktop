@@ -20,6 +20,17 @@ export default defineConfig({
     resolve: { alias: { '@shared': shared } },
     build: {
       lib: { entry: resolve(import.meta.dirname, 'src/preload/index.ts') },
+      rollupOptions: {
+        // A sandboxed preload cannot be ESM. Because package.json says
+        // "type": "module", electron-vite would otherwise emit index.mjs and
+        // Electron would fail it with "Cannot use import statement outside a
+        // module" — leaving `window.api` undefined and the window blank, with
+        // the error visible only in the renderer console.
+        //
+        // The fix is the module format, never `sandbox: false`
+        // (`.claude/rules/network-boundary.md`).
+        output: { format: 'cjs', entryFileNames: 'index.cjs' },
+      },
     },
   },
   renderer: {

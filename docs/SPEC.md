@@ -88,15 +88,56 @@ new BrowserWindow({
     nodeIntegration: false,
     sandbox: true,
     webSecurity: true,
-    preload: path.join(__dirname, '../preload/index.js'),
+    // .cjs, not .js or .mjs — see below.
+    preload: path.join(__dirname, '../preload/index.cjs'),
   },
 })
 ```
 
-- CSP on the renderer: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'`
 - `app.on('web-contents-created')` → block `will-navigate` and deny `setWindowOpenHandler` for anything not `file://`/dev server
 - `shell.openExternal` only for `https:` links the user explicitly clicks in rendered markdown
 - No `remote` module, no `enableRemoteModule`
+
+**`sandbox: true` requires a CommonJS preload.** `package.json` sets
+`"type": "module"`, so electron-vite emits `index.mjs` by default — and a
+sandboxed preload cannot be ESM. Electron rejects it with *"Cannot use import
+statement outside a module"*, `window.api` never gets defined, and the window
+renders blank with the error visible only in the renderer console. The preload
+build is therefore pinned to `format: 'cjs'` with `entryFileNames: 'index.cjs'`
+in `electron.vite.config.ts`. **Fix a broken preload by changing the module
+format, never by turning off the sandbox.**
+
+### CSP
+
+Applied from the main process via `session.defaultSession.webRequest.onHeadersReceived`,
+not as a `<meta>` tag in `index.html`. A meta tag is baked into the HTML, so it
+cannot differ between dev and a packaged build, and it covers only the document
+that carries it rather than every response in the session.
+
+Packaged — the policy that ships:
+
+```
+default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';
+font-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'none';
+form-action 'none'; script-src 'self'; connect-src 'self'
+```
+
+In dev, and **only** when `ELECTRON_RENDERER_URL` is set, two directives are
+loosened so the Vite dev server works:
+
+| Directive | Dev value | Why |
+|---|---|---|
+| `script-src` | `'self' 'unsafe-inline'` | Vite injects the react-refresh preamble as an inline `<script>`; there is no nonce to attach to it |
+| `connect-src` | `'self' <dev origin> <ws origin>` | the dev server serves the bundle and pushes HMR over a websocket on the same origin |
+
+A packaged build has no `ELECTRON_RENDERER_URL`, so it can never receive the
+loosened policy. `src/main/__tests__/contentSecurityPolicy.test.ts` asserts the
+gate in both directions.
+
+*(Until M2 this section described a `<meta>`-tag CSP with no dev carve-out, which
+was strict enough to block Vite's preamble — `npm run dev` produced a blank
+window. That is why the preload problem went unnoticed since M1: the app never
+rendered in dev at all.)*
 
 ## 6. IPC surface
 

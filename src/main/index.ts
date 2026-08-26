@@ -105,11 +105,15 @@ async function main(): Promise<void> {
   })
   registerLogsHandlers({ client, logger })
 
-  applyContentSecurityPolicy()
+  // The dev server URL is the only thing that loosens the policy, and a
+  // packaged build never has one.
+  applyContentSecurityPolicy(process.env.ELECTRON_RENDERER_URL)
 
   const open = (): void => {
     window = createWindow({
-      preloadPath: join(import.meta.dirname, '../preload/index.mjs'),
+      // .cjs, not .mjs: a sandboxed preload must be CommonJS. The format is
+      // forced in electron.vite.config.ts.
+      preloadPath: join(import.meta.dirname, '../preload/index.cjs'),
       devServerUrl: process.env.ELECTRON_RENDERER_URL,
       rendererFile: join(import.meta.dirname, '../renderer/index.html'),
       onOpenExternal: (url) => logger.info('opening external link', { url }),

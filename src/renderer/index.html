@@ -4,14 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      A second CSP, in the document as well as on the response headers set by
-      window.ts. Belt and braces: the header covers what the app serves, this
-      covers the file:// load in a packaged build.
+      No CSP meta tag on purpose. The policy is applied from the main process
+      (src/main/window.ts) so it can differ between dev and a packaged build,
+      and so it covers every response in the session rather than only this
+      document. A meta tag here would be the stricter of the two and would break
+      Vite's HMR preamble in dev.
     -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'"
-    />
     <title>LLM Harness</title>
   </head>
   <body>

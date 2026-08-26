@@ -17,19 +17,61 @@ import { BrowserWindow, shell, session, type BrowserWindowConstructorOptions } f
  * did call `fetch`, the request would not leave. Network access is the main
  * process's job (ADR-0002).
  */
-export const CONTENT_SECURITY_POLICY = [
-  "default-src 'self'",
-  "img-src 'self' data:",
-  // Tailwind injects styles at runtime, so 'unsafe-inline' is unavoidable here.
-  "style-src 'self' 'unsafe-inline'",
-  "script-src 'self'",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "frame-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ')
+/**
+ * The Content-Security-Policy, built for the environment it will run in.
+ *
+ * Applied from main via `onHeadersReceived`, not as a `<meta>` tag. Two reasons:
+ * a meta tag is baked into the HTML and so cannot differ between dev and a
+ * packaged build, and it covers only the document carrying it rather than every
+ * response in the session.
+ *
+ * `connect-src 'self'` is the belt to the renderer's braces: even if something
+ * did call `fetch`, the request would not leave. Network access is the main
+ * process's job (ADR-0002).
+ */
+export function contentSecurityPolicy(devServerUrl?: string | undefined): string {
+  const directives = [
+    "default-src 'self'",
+    "img-src 'self' data:",
+    // Tailwind injects styles at runtime, so 'unsafe-inline' is unavoidable.
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "frame-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ]
+
+  // Everything below is dev-only and gated on an actual dev server URL, which a
+  // packaged build never has. A packaged app therefore cannot receive the
+  // loosened policy even if this function were called by mistake.
+  if (devServerUrl) {
+    const origin = originOf(devServerUrl)
+    directives.push(
+      // Vite injects the react-refresh preamble as an inline <script>. There is
+      // no nonce to attach to it, so HMR needs 'unsafe-inline' here.
+      "script-src 'self' 'unsafe-inline'",
+      // The dev server serves the bundle over http and pushes HMR updates over
+      // a websocket on the same origin.
+      `connect-src 'self' ${origin} ${origin.replace(/^http/, 'ws')}`,
+    )
+  } else {
+    directives.push("script-src 'self'", "connect-src 'self'")
+  }
+
+  return directives.join('; ')
+}
+
+/** The strict, packaged policy — SPEC §5. Exported so a test can assert it. */
+export const PACKAGED_CSP = contentSecurityPolicy()
+
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin
+  } catch {
+    return url
+  }
+}
 
 export interface CreateWindowOptions {
   preloadPath: string
@@ -117,13 +159,21 @@ function defaultOpenExternal(url: string): void {
   void shell.openExternal(url)
 }
 
-/** Applied to the default session so it covers the renderer and any subframe. */
-export function applyContentSecurityPolicy(): void {
+/**
+ * Apply the CSP to the default session, so it covers the renderer and any
+ * subframe rather than only the document that carries a meta tag.
+ *
+ * `devServerUrl` is the *only* thing that loosens it, and a packaged build never
+ * has one.
+ */
+export function applyContentSecurityPolicy(devServerUrl?: string | undefined): void {
+  const policy = contentSecurityPolicy(devServerUrl)
+
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': [CONTENT_SECURITY_POLICY],
+        'Content-Security-Policy': [policy],
       },
     })
   })
