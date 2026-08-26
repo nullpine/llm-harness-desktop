@@ -16,8 +16,38 @@ import { useServerStore } from './stores/useServerStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 
 export function App() {
-  const { settings, loaded, load } = useSettingsStore()
-  const [settingsRequested, setSettingsRequested] = useState(false)
+  const { loaded, load } = useSettingsStore()
+
+  useEffect(() => {
+    void load()
+    // Once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (!loaded) return <div className="h-full bg-[var(--color-surface)]" />
+
+  // Remounted only when settings finish loading, so `Workspace` can seed its
+  // own state from a `firstRun` value that is actually known.
+  return <Workspace />
+}
+
+/**
+ * The app proper, mounted once settings are loaded.
+ *
+ * Split out so that "is Settings open?" can be seeded from `firstRun` in a
+ * `useState` initialiser. Deriving it as `settingsRequested || firstRun` looked
+ * tidier and was wrong: on first run, saving the server URL flips `firstRun`
+ * false, which unmounted the modal *while the user was still in it* — Test
+ * connection could never show its result. Once the modal is open, only the user
+ * closes it.
+ */
+function Workspace() {
+  const { settings } = useSettingsStore()
+  const configured = settings.serverUrl.trim() !== ''
+  const [settingsOpen, setSettingsOpen] = useState(!configured)
+  // Whether this session began unconfigured — for the explainer copy, which
+  // should not disappear the moment a URL is typed.
+  const [firstRun] = useState(!configured)
 
   const { server, setServer, initialise } = useServerStore()
   const conversations = useConversationStore()
@@ -31,17 +61,12 @@ export function App() {
   useIpcEvent<ServerState>(window.api.models.onStateChanged, setServer)
 
   useEffect(() => {
-    void load()
     void initialise()
     void conversations.loadList()
     // Once, on mount. The stores are module singletons, so re-running this on
     // every render would refetch the world.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const configured = settings.serverUrl.trim() !== ''
-  const firstRun = loaded && !configured
-  const settingsOpen = settingsRequested || firstRun
 
   const stream = activeRequestId ? (streams[activeRequestId] ?? null) : null
   const modelLabel = server.activeModelId ?? 'No model'
@@ -63,14 +88,12 @@ export function App() {
     if (activeRequestId) void abort(activeRequestId)
   }, [abort, activeRequestId])
 
-  if (!loaded) return <div className="h-full bg-[var(--color-surface)]" />
-
   return (
     <>
       <AppShell
         titleBar={
           <TitleBar
-            onOpenSettings={() => setSettingsRequested(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
             serverLabel={configured ? settings.serverUrl : 'not configured'}
             connected={server.state === 'ready'}
           >
@@ -112,7 +135,10 @@ export function App() {
       {settingsOpen ? (
         <SettingsModal
           firstRun={firstRun}
-          onClose={firstRun ? undefined : () => setSettingsRequested(false)}
+          // Dismissable only once a server URL exists — first run has nothing
+          // behind it (SPEC §8.5). Save always closes, whatever the state.
+          dismissable={configured}
+          onClose={() => setSettingsOpen(false)}
         />
       ) : null}
     </>

@@ -15,7 +15,9 @@ import type { Settings, Theme } from '@shared/types'
 
 import { atomicWrite } from '../lib/atomicWrite'
 
-interface StoredSettings extends Omit<Settings, 'hasApiKey'> {
+// Both omitted fields are *derived* — one from the secret store, one from the
+// machine — so neither belongs on disk.
+interface StoredSettings extends Omit<Settings, 'hasApiKey' | 'credentialStoreAvailable'> {
   /** Present so a future shape change has something to branch on. */
   version: number
 }
@@ -43,20 +45,24 @@ export class SettingsStore {
    * The key itself is not a parameter and cannot be: this returns the object that
    * crosses IPC, and `Settings` has no field for it (CLAUDE.md rule 3).
    */
-  async get(hasApiKey: boolean): Promise<Settings> {
+  async get(hasApiKey: boolean, credentialStoreAvailable = true): Promise<Settings> {
     const stored = await this.load()
     const { version: _version, ...rest } = stored
-    return { ...rest, hasApiKey }
+    return { ...rest, hasApiKey, credentialStoreAvailable }
   }
 
   /** Merge a patch and persist. Unknown and unsettable keys are dropped. */
-  async set(patch: Partial<Settings>, hasApiKey: boolean): Promise<Settings> {
+  async set(
+    patch: Partial<Settings>,
+    hasApiKey: boolean,
+    credentialStoreAvailable = true,
+  ): Promise<Settings> {
     const current = await this.load()
     const next = sanitise({ ...current, ...patch })
     this.cache = next
     await atomicWrite(this.file, `${JSON.stringify(next, null, 2)}\n`)
     const { version: _version, ...rest } = next
-    return { ...rest, hasApiKey }
+    return { ...rest, hasApiKey, credentialStoreAvailable }
   }
 
   private async load(): Promise<StoredSettings> {

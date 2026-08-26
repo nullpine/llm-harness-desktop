@@ -24,7 +24,11 @@ export function ReasoningBlock({
   if (!hasReasoning(text)) return null
 
   return (
-    <div className="mb-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
+    <div
+      data-testid="reasoning-block"
+      data-seconds={seconds.toFixed(1)}
+      className="mb-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)]"
+    >
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -35,10 +39,15 @@ export function ReasoningBlock({
           ▸
         </span>
         {/* Elapsed only once the stream ends; a ticking number mid-stream is noise. */}
-        <span>{streaming ? 'Thinking…' : `Thinking (${formatSeconds(seconds)})`}</span>
+        <span data-testid="reasoning-label">
+          {streaming ? 'Thinking…' : `Thinking (${formatSeconds(seconds)})`}
+        </span>
       </button>
       {open ? (
-        <p className="border-t border-[var(--color-border-subtle)] px-3 py-2 text-xs whitespace-pre-wrap text-[var(--color-text-muted)]">
+        <p
+          data-testid="reasoning-text"
+          className="border-t border-[var(--color-border-subtle)] px-3 py-2 text-xs whitespace-pre-wrap text-[var(--color-text-muted)]"
+        >
           {text}
         </p>
       ) : null}

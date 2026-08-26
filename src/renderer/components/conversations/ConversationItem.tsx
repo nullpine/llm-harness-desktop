@@ -58,6 +58,7 @@ export function ConversationItem({
       <button
         type="button"
         onClick={onSelect}
+        data-testid="conversation-select"
         className="flex flex-1 items-center gap-1.5 truncate text-left"
         title={damaged ? "This conversation's file is damaged" : conversation.title}
       >

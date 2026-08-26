@@ -201,6 +201,7 @@ interface Conversation {
 interface Settings {
   serverUrl: string          // https://harness.example.com
   hasApiKey: boolean         // never the key itself
+  credentialStoreAvailable: boolean  // false where safeStorage has no keyring
   systemPrompt: string
   temperature: number        // default 0.7
   topP: number               // default 0.95

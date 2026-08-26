@@ -11,6 +11,17 @@ import { DEFAULT_SETTINGS } from '@shared/constants'
 import type { AppError } from '@shared/errors'
 import type { Settings } from '@shared/types'
 
+/**
+ * `ok` means the key is usable now. `persisted` says whether it will survive a
+ * restart — false on a machine with no secure credential store, which is a
+ * warning rather than a reason to block the user.
+ */
+export interface SetApiKeyOutcome {
+  ok: boolean
+  persisted: boolean
+  message?: string | undefined
+}
+
 interface SettingsState {
   settings: Settings
   loaded: boolean
@@ -18,7 +29,7 @@ interface SettingsState {
   error: AppError | null
   load: () => Promise<void>
   save: (patch: Partial<Settings>) => Promise<boolean>
-  setApiKey: (key: string) => Promise<{ ok: boolean; message?: string }>
+  setApiKey: (key: string) => Promise<SetApiKeyOutcome>
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -53,9 +64,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       // hasApiKey is derived in main, so re-read rather than assume.
       const refreshed = await window.api.settings.get()
       if (refreshed.ok) set({ settings: refreshed.value })
-      return { ok: true }
+      return result.value.persisted
+        ? { ok: true, persisted: true }
+        : { ok: true, persisted: false, message: result.value.warning }
     }
     set({ error: result.error })
-    return { ok: false, message: result.error.message }
+    return { ok: false, persisted: false, message: result.error.message }
   },
 }))

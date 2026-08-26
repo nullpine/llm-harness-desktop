@@ -21,7 +21,10 @@ export function ModelStatusPill({ server }: { server: ServerState }) {
   if (!style) return null
 
   return (
-    <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+    <span
+      data-testid="model-status"
+      className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
+    >
       <span
         aria-hidden
         className={`h-1.5 w-1.5 rounded-full ${style.pulse ? 'animate-pulse' : ''}`}

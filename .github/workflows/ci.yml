@@ -65,5 +65,63 @@ jobs:
         # A build that silently emits nothing would otherwise pass.
         run: |
           test -f out/main/index.js
-          test -f out/preload/index.mjs
           test -f out/renderer/index.html
+
+      - name: Check the preload is CommonJS
+        # Not just "a preload exists": a *sandboxed* preload cannot be ESM, and
+        # package.json is "type": "module", so the format has to be forced
+        # (electron.vite.config.ts). Get it wrong and Electron rejects the file
+        # with "Cannot use import statement outside a module", `window.api` never
+        # gets defined, and the app renders a blank window whose only symptom is
+        # a line in the renderer console. Assert the invariant, not the filename.
+        run: |
+          test -f out/preload/index.cjs
+          grep -q 'require(' out/preload/index.cjs
+          ! grep -qE '^\s*import[ (]' out/preload/index.cjs
+
+  e2e:
+    # macOS, not ubuntu — the one place in this workflow where the platform is
+    # load-bearing.
+    #
+    # `safeStorage` needs a real secret service. A bare ubuntu runner has none:
+    # Electron falls back to the `basic_text` backend and reports
+    # `isEncryptionAvailable() === false`, so the app (correctly) keeps the key
+    # in memory only. Nothing then survives a restart, and A7, A1's restart case
+    # and A8's on-disk check all fail — not because the app is wrong, but
+    # because the runner cannot store a secret.
+    #
+    # Installing gnome-keyring and starting it under dbus was tried and did not
+    # give Electron a usable store. Rather than keep tuning that, e2e runs where
+    # the app actually ships and where the Keychain works. `check` and `build`
+    # stay on ubuntu, so only this job pays the macOS rate.
+    #
+    # e2e/environment.spec.ts prints the backend on every run, so if this ever
+    # regresses the log says so directly instead of via three confusing failures.
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the app
+        run: npx electron-vite build
+
+      - name: Run e2e
+        run: npx playwright test
+
+      - name: Upload traces and screenshots
+        # A red CI run you cannot see is worse than none.
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

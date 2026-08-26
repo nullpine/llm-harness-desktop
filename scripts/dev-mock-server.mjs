@@ -83,11 +83,17 @@ const ERROR_STATUS = {
  * @param {number} [options.tokenDelayMs] gap between streamed words
  * @param {string} [options.apiKey]
  * @param {string} [options.activeModelId] start already serving this model
+ * @param {string} [options.finishReason] what to end a stream with, default "stop".
+ *   Set to "length" to exercise the truncation note.
+ * @param {boolean} [options.emptyContent] stream reasoning only, no content — what a
+ *   reasoning model does when the token budget runs out mid-thought.
  */
 export function createMockServer(options = {}) {
   const loadMs = options.loadMs ?? Number(process.env.MOCK_LOAD_MS ?? 8000)
   const tokenDelayMs = options.tokenDelayMs ?? Number(process.env.MOCK_TOKEN_DELAY_MS ?? 40)
   const apiKey = options.apiKey ?? process.env.MOCK_API_KEY ?? DEFAULT_API_KEY
+  const finishReason = options.finishReason ?? 'stop'
+  const emptyContent = options.emptyContent ?? false
   const startedAt = Date.now()
 
   const state = {
@@ -366,7 +372,7 @@ export function createMockServer(options = {}) {
       await sleep(delayMs)
     }
 
-    for (const word of words) {
+    for (const word of emptyContent ? [] : words) {
       if (aborted) return
       frame({
         id: 'chatcmpl-mock',
@@ -380,8 +386,8 @@ export function createMockServer(options = {}) {
     frame({
       id: 'chatcmpl-mock',
       object: 'chat.completion.chunk',
-      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      usage: { prompt_tokens: 12, completion_tokens: words.length },
+      choices: [{ index: 0, delta: {}, finish_reason: finishReason }],
+      usage: { prompt_tokens: 12, completion_tokens: emptyContent ? 0 : words.length },
     })
     res.write('data: [DONE]\n\n')
     res.end()

@@ -15,7 +15,7 @@ llm-harness-desktop/
 │   │   └── task.yml
 │   ├── pull_request_template.md
 │   └── workflows/
-│       ├── ci.yml                    # typecheck → lint → unit → build (ubuntu)
+│       ├── ci.yml                    # typecheck → lint → unit → build (ubuntu) → e2e (macos)
 │       └── release.yml               # tag v* → electron-builder → GH release (manual trigger for MVP)
 │
 ├── .vscode/

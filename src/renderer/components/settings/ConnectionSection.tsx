@@ -27,6 +27,8 @@ export function ConnectionSection(props: ConnectionSectionProps) {
         <span className="text-xs font-medium text-[var(--color-text-muted)]">Server URL</span>
         <input
           type="url"
+          aria-label="Server URL"
+          data-testid="server-url"
           value={props.serverUrl}
           placeholder="https://harness.example.com"
           spellCheck={false}
@@ -39,11 +41,19 @@ export function ConnectionSection(props: ConnectionSectionProps) {
         ) : null}
       </label>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-[var(--color-text-muted)]">API key</span>
-        {showKeyInput ? (
+      {/*
+        A <label> only when there is an input to label. `<button>` is a labelable
+        element, so wrapping the ••• / Replace pair in one made the *button's*
+        accessible name "API key" — mislabelling it for screen readers, and for
+        anything else that asks the accessibility tree what that control is.
+      */}
+      {showKeyInput ? (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-[var(--color-text-muted)]">API key</span>
           <input
             type="password"
+            aria-label="API key"
+            data-testid="api-key"
             value={props.apiKeyDraft ?? ''}
             placeholder="paste the key from the server"
             spellCheck={false}
@@ -51,7 +61,10 @@ export function ConnectionSection(props: ConnectionSectionProps) {
             onChange={(e) => props.onApiKeyDraftChange(e.target.value)}
             className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-overlay)] px-3 py-2 outline-none focus:border-[var(--color-accent)]"
           />
-        ) : (
+        </label>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-[var(--color-text-muted)]">API key</span>
           <div className="flex items-center gap-3">
             {/* The key is never readable from here — main will not hand it back. */}
             <span className="font-mono text-[var(--color-text-muted)]">••••••••••••</span>
@@ -65,8 +78,8 @@ export function ConnectionSection(props: ConnectionSectionProps) {
               Replace
             </Button>
           </div>
-        )}
-      </label>
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="secondary" onClick={props.onTest} disabled={props.testing}>
@@ -81,10 +94,14 @@ export function ConnectionSection(props: ConnectionSectionProps) {
 
 function TestOutcome({ result }: { result: ServerTestResult }) {
   if (!result.ok) {
-    return <span className="text-sm text-[var(--color-danger)]">✕ {result.error}</span>
+    return (
+      <span data-testid="test-outcome" className="text-sm text-[var(--color-danger)]">
+        ✕ {result.error}
+      </span>
+    )
   }
   return (
-    <span className="text-sm text-[var(--color-success)]">
+    <span data-testid="test-outcome" className="text-sm text-[var(--color-success)]">
       ✓ Connected · contract v{result.version} · {result.latencyMs} ms
     </span>
   )

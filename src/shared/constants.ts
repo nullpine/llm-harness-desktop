@@ -68,6 +68,7 @@ export const CONTRACT_VERSION = '1.1'
 export const DEFAULT_SETTINGS: Settings = {
   serverUrl: '',
   hasApiKey: false,
+  credentialStoreAvailable: true,
   systemPrompt: '',
   temperature: DEFAULT_TEMPERATURE,
   topP: DEFAULT_TOP_P,

@@ -21,6 +21,7 @@ import type {
   ChatErrorEvent,
   LogsRequest,
   Result,
+  SetApiKeyResult,
   ServerTestResult,
 } from '@shared/ipc'
 import type {
@@ -53,7 +54,7 @@ const api: HarnessApi = {
   settings: {
     get: () => invoke<Settings>(IPC.settingsGet),
     set: (patch: Partial<Settings>) => invoke<Settings>(IPC.settingsSet, patch),
-    setApiKey: (key: string) => invoke<{ ok: true }>(IPC.settingsSetApiKey, { key }),
+    setApiKey: (key: string) => invoke<SetApiKeyResult>(IPC.settingsSetApiKey, { key }),
   },
   server: {
     test: () => invoke<ServerTestResult>(IPC.serverTest),

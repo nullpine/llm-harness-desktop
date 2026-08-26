@@ -75,6 +75,15 @@ export type Theme = 'system' | 'light' | 'dark'
 export interface Settings {
   serverUrl: string
   hasApiKey: boolean
+  /**
+   * Whether this machine has somewhere secure to keep the key.
+   *
+   * False on a desktop with no keyring, where the key is held in memory for the
+   * session and is gone after quit. A property of the machine, not of the key —
+   * which is why it belongs here rather than in a transient bit of modal state
+   * that vanishes the moment the dialog closes.
+   */
+  credentialStoreAvailable: boolean
   systemPrompt: string
   temperature: number
   topP: number

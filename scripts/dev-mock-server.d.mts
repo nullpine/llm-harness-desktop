@@ -26,6 +26,10 @@ export interface MockServerOptions {
   tokenDelayMs?: number
   apiKey?: string
   activeModelId?: string
+  /** What to end a stream with. `'length'` exercises the truncation note. */
+  finishReason?: 'stop' | 'length' | 'content_filter'
+  /** Stream reasoning only — a reasoning model that ran out of budget. */
+  emptyContent?: boolean
 }
 
 export interface MockServer {
