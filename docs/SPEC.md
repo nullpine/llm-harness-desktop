@@ -364,7 +364,7 @@ The MVP is done when all of these pass on a clean machine against a real VM.
 | A3 | Pressing Stop mid-stream halts token flow within 500 ms, keeps the partial text, and the server-side request is cancelled (verify vLLM logs show the abort) |
 | A4 | Switching the dropdown from GLM to Qwen shows the confirm dialog, disables the composer, shows elapsed-time progress, and re-enables within the advertised load window |
 | A5 | After a switch, a new message is answered by the new model and the assistant bubble is labelled with it |
-| A6 | Killing the vLLM process on the VM makes the app show `unreachable`/`error` within 60 s without crashing, and it recovers automatically once the model is back |
+| A6 | Killing the backend puts the app into `error`/`unreachable` without a crash, with honest state and friendly copy. Recovery from an unreachable *server* is automatic once it returns. Recovery from a *dead model* is one click in the dropdown — automatic restart is deliberately excluded by ADR-0005. |
 | A7 | Quitting and reopening the app restores the conversation list and the full transcript of the last conversation |
 | A8 | The API key is not present in plaintext anywhere under `userData` (grep the directory) and is not readable from the renderer (`window.api` exposes no key getter) |
 | A9 | Renderer DevTools shows zero network requests to the server origin |
@@ -376,6 +376,15 @@ Reasoning models emit reasoning before content: GLM 4.7 Flash on Ollama typicall
 streams a Thinking block for several seconds before the first content token.
 "Visible output" in A2 deliberately includes that block, because an app that shows
 nothing for several seconds reads as broken regardless of what it is doing.
+
+A6 covers two different deaths, and they surface at different speeds. A dead
+*model* is reported by the server itself, so the app sees `error` on its next
+poll — measured at 30 s against the real server. A dead *control plane* has to be
+inferred client-side, which takes up to 90 s: SPEC §9 polls every 30 s when
+settled and requires three consecutive failures. That is longer than the 60 s an
+earlier version of this criterion assumed. It is tracked as the M4 backoff item
+rather than fixed by changing §9 here, because shortening the interval or the
+failure count trades away the quiet period §9 exists to provide.
 
 ## 11. Performance targets
 

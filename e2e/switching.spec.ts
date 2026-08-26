@@ -190,12 +190,12 @@ test('A6: the server going away is handled, and recovery is automatic', async ()
     // The backend goes away mid-session.
     await first.server.close()
 
-    // Up to 150 s, not A6's 60 s, and the difference is a real finding rather
-    // than a slow test. SPEC §9 polls every 30 s when settled and needs three
-    // consecutive failures, so a dead *control plane* takes up to 90 s to
-    // notice. (A dead *model* is quick: the server itself reports `error` and
-    // the next poll picks it up within 30 s — that path does meet A6.)
-    // Recorded against the M4 backoff item; deliberately not fixed here.
+    // A generous 150 s because this is the *slow* half of A6. SPEC §9 polls
+    // every 30 s when settled and needs three consecutive failures, so a dead
+    // control plane takes up to 90 s to infer client-side. A dead model is much
+    // quicker — the server reports `error` itself and the next poll sees it
+    // inside 30 s. §10's note records both; the M4 backoff item tracks making
+    // this half faster without giving up the quiet period §9 exists for.
     await waitForState(app.window, 'unreachable', 150_000)
 
     // Friendly copy, no raw code, no crash.
