@@ -9,4 +9,43 @@
 @import 'tailwindcss';
 @config '../../../tailwind.config.ts';
 
-/* Theme variables live here; M1 fills them in alongside the app shell. */
+/*
+ * The palette. One dark theme in M1; the light/system split lands with the
+ * theme toggle in M2, which is why these are variables rather than literals.
+ */
+@theme {
+  --color-surface: #0b0d12;
+  --color-surface-raised: #141821;
+  --color-surface-overlay: #1b2029;
+  --color-border-subtle: #232a36;
+  --color-text-primary: #e6e9ef;
+  --color-text-muted: #939cad;
+  --color-accent: #5b8cff;
+  --color-danger: #ff6b6b;
+  --color-success: #4ade80;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The draggable strip on macOS, where the traffic lights sit. */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+.titlebar-drag button,
+.titlebar-drag input,
+.titlebar-drag select {
+  -webkit-app-region: no-drag;
+}

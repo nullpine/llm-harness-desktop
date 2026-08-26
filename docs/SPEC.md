@@ -138,7 +138,7 @@ interface Message {
   id: string                 // ulid
   role: Role
   content: string
-  reasoning?: string         // from delta.reasoning_content, collapsed in UI
+  reasoning?: string         // from delta.reasoning_content or delta.reasoning
   modelId?: string           // which model produced it (assistant only)
   createdAt: string          // ISO 8601
   usage?: { promptTokens: number; completionTokens: number }
@@ -169,7 +169,8 @@ interface Settings {
 
 interface ModelInfo {
   id: string; displayName: string; params: string; quantization: string
-  contextLength: number; downloaded: boolean
+  modelRef: string           // the engine's name for it — opaque, display only
+  contextLength: number; available: boolean   // v1.1: `available` was `downloaded`
   state: 'idle' | 'loading' | 'ready' | 'stopping' | 'error'
   estimatedLoadSeconds: number
 }

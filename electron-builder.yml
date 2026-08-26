@@ -1,0 +1,38 @@
+# Packaging config (SPEC §4): dmg on macOS, nsis on Windows, AppImage on Linux.
+#
+# M1 needs this only so `npm run build` completes; producing a dmg that launches
+# on a clean machine is M5 (acceptance A11), and signing and notarization are
+# deferred with it — hence `identity: null`, which builds an unsigned app rather
+# than failing on a missing certificate. CI runs `electron-vite build` only.
+appId: com.nullpine.llm-harness
+productName: LLM Harness
+copyright: Copyright © 2026
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# The renderer bundle and the main process are already built by electron-vite;
+# electron-builder only packages what is in out/.
+asar: true
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+  # Unsigned until M5. With a certificate present this becomes the team identity.
+  identity: null
+  hardenedRuntime: false
+
+win:
+  target:
+    - nsis
+
+linux:
+  category: Utility
+  target:
+    - AppImage
