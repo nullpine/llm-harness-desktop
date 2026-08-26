@@ -80,11 +80,25 @@ jobs:
           ! grep -qE '^\s*import[ (]' out/preload/index.cjs
 
   e2e:
-    # After build, because the specs drive the *built* app: the dev CSP carve-out
-    # exists only in dev, so testing against the dev server would never exercise
-    # the strict policy that ships.
+    # macOS, not ubuntu — the one place in this workflow where the platform is
+    # load-bearing.
+    #
+    # `safeStorage` needs a real secret service. A bare ubuntu runner has none:
+    # Electron falls back to the `basic_text` backend and reports
+    # `isEncryptionAvailable() === false`, so the app (correctly) keeps the key
+    # in memory only. Nothing then survives a restart, and A7, A1's restart case
+    # and A8's on-disk check all fail — not because the app is wrong, but
+    # because the runner cannot store a secret.
+    #
+    # Installing gnome-keyring and starting it under dbus was tried and did not
+    # give Electron a usable store. Rather than keep tuning that, e2e runs where
+    # the app actually ships and where the Keychain works. `check` and `build`
+    # stay on ubuntu, so only this job pays the macOS rate.
+    #
+    # e2e/environment.spec.ts prints the backend on every run, so if this ever
+    # regresses the log says so directly instead of via three confusing failures.
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -98,33 +112,8 @@ jobs:
       - name: Build the app
         run: npx electron-vite build
 
-      # `safeStorage` needs a real secret service, and a bare runner has none.
-      # Without it the app cannot persist an API key, so every spec that
-      # restarts and expects to still be configured fails — correctly, but it
-      # means the normal path would never be exercised in CI.
-      - name: Install a secret service
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gnome-keyring libsecret-1-0 dbus-x11
-
-      # xvfb for the display Electron needs even offscreen; dbus-run-session so
-      # the keyring daemon has a bus to sit on; the empty password unlocks a
-      # throwaway keyring created just for this run.
       - name: Run e2e
-        env:
-          # Electron picks a password store by sniffing the desktop; on a bare
-          # runner there is nothing to sniff, so name it explicitly. Without this
-          # it can fall back to `basic_text`, which "encrypts" with a well-known
-          # key — worse than failing, because it looks like it worked.
-          ELECTRON_EXTRA_LAUNCH_ARGS: --password-store=gnome-libsecret
-        run: |
-          xvfb-run --auto-servernum dbus-run-session -- bash -c '
-            gnome-keyring-daemon --start --daemonize --components=secrets <<< "ci-throwaway"
-            # The daemon exports its address into the environment of the shell it
-            # was started from; give it a moment to claim org.freedesktop.secrets.
-            sleep 2
-            npx playwright test
-          '
+        run: npx playwright test
 
       - name: Upload traces and screenshots
         # A red CI run you cannot see is worse than none.
