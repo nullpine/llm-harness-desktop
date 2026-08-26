@@ -1,0 +1,14 @@
+name: Release
+
+# Packaging lands in M5 (docs/BACKLOG.md). Until then this is a manual-only stub:
+# an empty workflow file is invalid YAML to Actions and fails on every push, which
+# is why it has a body at all.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Release packaging lands in M5. See docs/BACKLOG.md."
