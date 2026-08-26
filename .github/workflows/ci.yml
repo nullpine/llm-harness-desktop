@@ -111,10 +111,18 @@ jobs:
       # the keyring daemon has a bus to sit on; the empty password unlocks a
       # throwaway keyring created just for this run.
       - name: Run e2e
+        env:
+          # Electron picks a password store by sniffing the desktop; on a bare
+          # runner there is nothing to sniff, so name it explicitly. Without this
+          # it can fall back to `basic_text`, which "encrypts" with a well-known
+          # key — worse than failing, because it looks like it worked.
+          ELECTRON_EXTRA_LAUNCH_ARGS: --password-store=gnome-libsecret
         run: |
           xvfb-run --auto-servernum dbus-run-session -- bash -c '
-            eval "$(printf "\n" | gnome-keyring-daemon --unlock --components=secrets)"
-            export GNOME_KEYRING_CONTROL
+            gnome-keyring-daemon --start --daemonize --components=secrets <<< "ci-throwaway"
+            # The daemon exports its address into the environment of the shell it
+            # was started from; give it a moment to claim org.freedesktop.secrets.
+            sleep 2
             npx playwright test
           '
 
