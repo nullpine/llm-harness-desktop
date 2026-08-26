@@ -82,6 +82,20 @@ describe('create, append, list, get', () => {
     expect(loaded?.messages[0]?.content).toBe('complete')
   })
 
+  it('round-trips finishReason, so a truncated reply still says so after a reopen', async () => {
+    // A7 plus truncation: the note in the bubble is driven by this field, and it
+    // has to survive a quit rather than living only in the in-memory buffer.
+    const created = await store.create({ modelId: 'm' })
+    await store.appendMessage(
+      created.id,
+      message({ role: 'assistant', content: 'cut off mid-', finishReason: 'length' }),
+    )
+
+    const reopened = new ConversationStore({ directory })
+    const loaded = await reopened.get(created.id)
+    expect(loaded?.messages[0]?.finishReason).toBe('length')
+  })
+
   it('derives the title from the first user message', async () => {
     const created = await store.create({ modelId: 'm' })
     await store.appendMessage(created.id, message({ content: 'How do I profile Rust?' }))

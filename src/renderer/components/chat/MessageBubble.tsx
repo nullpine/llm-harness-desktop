@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import type { Message } from '@shared/types'
 
-import { errorCopy } from '../../lib/errorCopy'
+import { errorCopy, truncationNote } from '../../lib/errorCopy'
 import { formatSeconds, formatTime } from '../../lib/format'
 import { Button } from '../ui/Button'
 import { MarkdownContent } from './MarkdownContent'
@@ -39,6 +39,10 @@ export function MessageBubble({
 
   const content = streaming?.active ? streaming.content : message.content
   const reasoning = streaming?.active ? streaming.reasoning : (message.reasoning ?? '')
+
+  // Only once the stream has finished: mid-stream there is no finish reason yet,
+  // and flashing "cut off" at a reply still arriving would be wrong.
+  const truncation = streaming?.active ? null : truncationNote(message.finishReason, content)
 
   const copy = (): void => {
     void navigator.clipboard.writeText(content).then(() => {
@@ -81,6 +85,12 @@ export function MessageBubble({
             {streaming?.active ? <StreamingCursor /> : null}
           </>
         )}
+
+        {truncation ? (
+          <p className="mt-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-overlay)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+            {truncation}
+          </p>
+        ) : null}
 
         {message.error ? (
           <div className="mt-2 flex items-center gap-3 rounded-md border border-[var(--color-danger)] px-3 py-2 text-sm text-[var(--color-danger)]">

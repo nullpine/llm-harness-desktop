@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 import { SERVER_ERROR_CODES, appError } from '@shared/errors'
 
-import { composerDisabledReason, errorCopy } from '../lib/errorCopy'
+import { composerDisabledReason, errorCopy, truncationNote } from '../lib/errorCopy'
 
 describe('A12: no model active', () => {
   it('reads as a sentence, not a code', () => {
@@ -76,5 +76,51 @@ describe('unknown codes fall back to the server message', () => {
     expect(errorCopy(appError('some_new_code', 'the server explained itself'))).toBe(
       'the server explained itself',
     )
+  })
+})
+
+describe('truncationNote', () => {
+  it('explains an empty reply that used its whole budget', () => {
+    // What a reasoning model does with a small max_tokens: all thinking, no answer.
+    expect(truncationNote('length', '')).toBe(
+      "The model used its whole token budget reasoning and didn't produce an answer. Increase Max tokens in Settings.",
+    )
+  })
+
+  it('treats whitespace-only content as empty', () => {
+    expect(truncationNote('length', '   \n ')).toMatch(/whole token budget/)
+  })
+
+  it('explains a reply that was cut off mid-answer', () => {
+    expect(truncationNote('length', 'Rendering pixels fast,')).toBe(
+      'Response was cut off — increase Max tokens in Settings.',
+    )
+  })
+
+  it('says nothing when the reply ended normally', () => {
+    expect(truncationNote('stop', 'a complete answer')).toBeNull()
+    expect(truncationNote(null, 'a complete answer')).toBeNull()
+    expect(truncationNote(undefined, 'a complete answer')).toBeNull()
+  })
+
+  it('says nothing when the user pressed Stop', () => {
+    // Stopping is deliberate; "increase Max tokens" would be wrong advice.
+    expect(truncationNote('abort', 'as far as I got')).toBeNull()
+  })
+
+  it('says nothing for a content filter', () => {
+    expect(truncationNote('content_filter', 'partial')).toBeNull()
+  })
+
+  it('points at the setting the user can actually change', () => {
+    for (const content of ['', 'partial']) {
+      expect(truncationNote('length', content)).toMatch(/Max tokens in Settings/)
+    }
+  })
+
+  it('never surfaces the raw finish reason', () => {
+    for (const content of ['', 'partial']) {
+      expect(truncationNote('length', content)).not.toContain('length')
+    }
   })
 })

@@ -203,7 +203,7 @@ async function streamReply(args: StreamArgs): Promise<void> {
       usage = event.usage
     }
 
-    await persist({})
+    await persist({ finishReason })
     send<ChatDoneEvent>(IPC.chatDone, {
       requestId,
       finishReason,
@@ -212,7 +212,7 @@ async function streamReply(args: StreamArgs): Promise<void> {
   } catch (cause) {
     if (controller.signal.aborted) {
       // The user pressed Stop, or the idle timeout fired. Keep the partial text.
-      await persist({ stopped: true })
+      await persist({ stopped: true, finishReason: 'abort' })
       send<ChatDoneEvent>(IPC.chatDone, { requestId, finishReason: 'abort' })
       return
     }

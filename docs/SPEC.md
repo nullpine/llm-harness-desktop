@@ -144,6 +144,7 @@ interface Message {
   usage?: { promptTokens: number; completionTokens: number }
   error?: { code: string; message: string }
   stopped?: boolean          // user pressed Stop
+  finishReason?: 'stop' | 'length' | 'content_filter' | 'abort' | null
 }
 
 interface Conversation {
@@ -306,7 +307,7 @@ The MVP is done when all of these pass on a clean machine against a real VM.
 | # | Criterion |
 |---|---|
 | A1 | Fresh install opens Settings; entering URL + key and pressing Test connection shows a success with the server version |
-| A2 | With a model `ready`, sending "Write a haiku about GPUs" streams tokens visibly within 3 s and completes without error |
+| A2 | With a model ready, sending "Write a haiku about GPUs" produces visible streaming output within 3 s — a live Thinking block counts — and answer content begins within 15 s |
 | A3 | Pressing Stop mid-stream halts token flow within 500 ms, keeps the partial text, and the server-side request is cancelled (verify vLLM logs show the abort) |
 | A4 | Switching the dropdown from GLM to Qwen shows the confirm dialog, disables the composer, shows elapsed-time progress, and re-enables within the advertised load window |
 | A5 | After a switch, a new message is answered by the new model and the assistant bubble is labelled with it |
@@ -317,6 +318,11 @@ The MVP is done when all of these pass on a clean machine against a real VM.
 | A10 | A malformed conversation JSON file is skipped with a logged warning; the app still starts |
 | A11 | `npm run build` produces a launchable dmg on macOS |
 | A12 | Sending with no model active shows a clear "no model loaded — pick one from the dropdown" message, not a raw 409 |
+
+Reasoning models emit reasoning before content: GLM 4.7 Flash on Ollama typically
+streams a Thinking block for several seconds before the first content token.
+"Visible output" in A2 deliberately includes that block, because an app that shows
+nothing for several seconds reads as broken regardless of what it is doing.
 
 ## 11. Performance targets
 

@@ -6,6 +6,7 @@
  */
 
 import type { AppError } from '@shared/errors'
+import type { FinishReason } from '@shared/types'
 
 const COPY: Record<string, string> = {
   // A12: this is what someone sees when nothing is loaded. Never a raw 409.
@@ -63,4 +64,25 @@ export function composerDisabledReason(
 /** True when the UI should offer a Retry rather than just an explanation. */
 export function isRetryable(error: AppError): boolean {
   return error.retryable
+}
+
+/**
+ * What to tell the user when a reply was cut short by the token budget.
+ *
+ * `finish_reason: "length"` means the model hit `max_tokens`, and the two cases
+ * read very differently. With no content at all the user sees an empty bubble and
+ * has no way to guess why — that happens when a reasoning model spends the whole
+ * budget thinking, but the cause is the budget, not the reasoning, so this is
+ * general truncation handling rather than a special case for one kind of model.
+ *
+ * Returns null when the reply ended normally.
+ */
+export function truncationNote(
+  finishReason: FinishReason | undefined,
+  content: string,
+): string | null {
+  if (finishReason !== 'length') return null
+  return content.trim() === ''
+    ? "The model used its whole token budget reasoning and didn't produce an answer. Increase Max tokens in Settings."
+    : 'Response was cut off — increase Max tokens in Settings.'
 }
