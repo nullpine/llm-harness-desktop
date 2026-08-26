@@ -1,12 +1,14 @@
 name: CI
 
-# M0 scope: typecheck -> lint -> test, plus the shared-contract hash guard.
+# typecheck -> lint -> test, plus the shared-contract hash guard, then a build.
 #
-# docs/PROJECT-STRUCTURE.md describes this workflow as "typecheck -> lint -> unit ->
-# build (ubuntu + macos)". There is no app to build yet -- src/main/index.ts and
-# src/renderer/App.tsx are empty placeholders, so electron-builder has nothing to
-# package. The build job and the macOS leg land in M1 with the app shell; update
-# PROJECT-STRUCTURE.md then.
+# The build job exists from M1 because there is now an app to package: a renderer
+# that fails to bundle, or a preload that cannot resolve @shared, breaks nothing
+# the unit tests touch. It runs `electron-vite build` only -- packaging with
+# electron-builder is M5's problem and needs signing material CI does not have.
+#
+# Still ubuntu-only. The macOS leg waits until something here is
+# platform-specific; today nothing is, and a second runner would buy only latency.
 
 on:
   push:
@@ -41,3 +43,27 @@ jobs:
 
       - name: Test
         run: npm run test
+
+  build:
+    # Only worth the runner minutes if the code is already known to be sound.
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build main, preload and renderer
+        run: npx electron-vite build
+
+      - name: Check the bundles exist
+        # A build that silently emits nothing would otherwise pass.
+        run: |
+          test -f out/main/index.js
+          test -f out/preload/index.mjs
+          test -f out/renderer/index.html

@@ -1,16 +1,8 @@
 # LLM Harness — MVP Roadmap
 
-Two repos, six milestones. The server leads by one milestone so the desktop app
-always has something real to build against — but the desktop app is unblocked from
-day one by its mock server, so M1 and M2 can run in parallel.
-
-```
-        M0 ──────────────────────────────────────────────────────► both repos
-        │
-server  ├── M1 serve one model ──► M2 switch models ──► M4 harden ──┐
-        │                                                            ├──► M5 ship
-desktop └── M1 mock + shell ────► M2 chat + stream ──► M3 dropdown ──┘
-```
+Desktop milestones only. The server side of each milestone lives in
+[llm-harness-server/docs/BACKLOG.md](https://github.com/nullpine/llm-harness-server/blob/main/docs/BACKLOG.md).
+Milestone numbering is shared; contents are per-repo.
 
 ---
 
@@ -34,17 +26,6 @@ Nothing runs yet; everything is in place to start.
 
 ## M1 — Serve one model / stand up the shell (2–3 days)
 
-### server
-- [ ] `settings.py`, `errors.py`, `catalog.py` with `models.yaml` validation
-- [ ] `auth.py` bearer dependency + `GET /healthz`
-- [ ] `supervisor/state.py` state machine, exhaustively tested, no I/O
-- [ ] `supervisor/process.py` spawn/kill a process group; `gpu.py` VRAM polling
-- [ ] `routes/openai.py` + `proxy.py` streaming relay against `fake_vllm`
-- [ ] `GET /v1/models`, `GET /admin/state`
-- [ ] `tests/fake_vllm.py` + `test_proxy_streaming.py` (asserts incremental arrival)
-- [ ] `scripts/provision.sh` up to "one model serving over HTTPS"
-- [ ] **First real deploy.** GLM 4.7 Flash answering `curl -N` through Caddy.
-
 ### desktop
 - [ ] `src/shared/types.ts`, `ipc.ts`, `constants.ts`
 - [ ] `scripts/dev-mock-server.mjs` implementing the full contract, incl. fake loads
@@ -56,20 +37,11 @@ Nothing runs yet; everything is in place to start.
 - [ ] `sseStream.ts` tolerates `delta.reasoning` (Ollama) as well as `delta.reasoning_content` (vLLM) — Ollama is the local MVP path, so this is the one that actually fires
 - [ ] Nothing keys off a chunk's `model` field; responses correlate by requestId only
 
-**Exit (server):** B2, B3, B4 from `SPEC.md` §7.
 **Exit (desktop):** A1, A8, A9 from `SPEC.md` §10.
 
 ---
 
 ## M2 — Chat, and switch models (3–4 days)
-
-### server
-- [ ] `supervisor/supervisor.py`: activate, drain, activation lock, job registry
-- [ ] `POST /admin/models/{id}/activate`, `GET /admin/jobs/{id}`, `GET /admin/models`
-- [ ] Watchdog: vLLM death → `error` within 5 s
-- [ ] `logbuf.py` + `GET /admin/logs`
-- [ ] `progress_hint` parsed from vLLM/HF output during load
-- [ ] `scripts/download-models.sh`; both models pre-downloaded on the VM
 
 ### desktop
 - [ ] `conversationStore.ts` with atomic writes and corrupt-file tolerance
@@ -79,7 +51,6 @@ Nothing runs yet; everything is in place to start.
 - [ ] Conversation sidebar: create, list, rename, delete, date grouping
 - [ ] Reasoning block (collapsed `Thinking`)
 
-**Exit (server):** B5, B6, B7, B11, B12.
 **Exit (desktop):** A2, A3, A7, A10, A12.
 
 ---
@@ -97,21 +68,11 @@ Nothing runs yet; everything is in place to start.
 
 ---
 
-## M4 — Harden (2 days, mostly server)
+## M4 — Harden (2 days)
 
-- [ ] `HARNESS_AUTOLOAD_LAST` — reboot restores the last model
-- [ ] Orphan-process cleanup on startup; `wait_for_vram_release` before every spawn
-- [ ] `logging_config.py` redaction + `test_redaction.py` in both repos
-- [ ] NSG locked to 443 from your IP; verify with `nmap`
-- [ ] `scripts/rotate-key.sh`, `vm-start.sh`, `vm-stop.sh`, Azure auto-shutdown
-- [ ] Spot provisioning (`--priority Spot --eviction-policy Deallocate`); verify
-      the app recovers cleanly from an eviction and `vm-start.sh` reports capacity
-      errors clearly (ADR-0006)
-- [ ] `scripts/smoke.sh` covering the full B-list
-- [ ] `docs/OPERATIONS.md`: OOM, stuck load, orphan GPU process, expired cert
-- [ ] Desktop: idle-chunk timeout, retry on failed message, error envelope → friendly copy
+- [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
 
-**Exit:** B1, B8, B9, B10, B13, B14.
+**Exit (desktop):** the items above. The B-list exit criteria are server-side.
 
 ---
 
