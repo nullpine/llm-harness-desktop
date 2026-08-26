@@ -7,6 +7,7 @@ import { AppShell } from './components/layout/AppShell'
 import { Sidebar } from './components/layout/Sidebar'
 import { TitleBar } from './components/layout/TitleBar'
 import { ServerLogsModal } from './components/logs/ServerLogsModal'
+import { GpuIndicator } from './components/models/GpuIndicator'
 import { LoadingBanner } from './components/models/LoadingBanner'
 import { ModelDropdown } from './components/models/ModelDropdown'
 import { SwitchModelDialog } from './components/models/SwitchModelDialog'
@@ -128,6 +129,8 @@ function Workspace() {
               onSelect={(model) => models.propose(model)}
               disabled={server.state === 'loading' || server.state === 'stopping'}
             />
+            {/* Nothing at all on the Ollama path, where `gpu` is always []. */}
+            <GpuIndicator gpus={server.gpu} />
           </TitleBar>
         }
       >

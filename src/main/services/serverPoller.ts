@@ -141,6 +141,28 @@ function sameState(a: ServerState, b: ServerState): boolean {
     a.progressHint === b.progressHint &&
     a.lastError === b.lastError &&
     a.reachable === b.reachable &&
-    a.gpu.length === b.gpu.length
+    sameGpus(a.gpu, b.gpu)
   )
+}
+
+/**
+ * GPU readouts compared by value, not by count.
+ *
+ * Comparing only `length` meant a change in memory or utilisation never reached
+ * the renderer — invisible on Ollama, which always reports `[]`, and a readout
+ * frozen at its first sample the moment this runs against vLLM.
+ */
+function sameGpus(a: ServerState['gpu'], b: ServerState['gpu']): boolean {
+  if (a.length !== b.length) return false
+  return a.every((gpu, index) => {
+    const other = b[index]
+    return (
+      other !== undefined &&
+      gpu.index === other.index &&
+      gpu.name === other.name &&
+      gpu.memoryUsedMb === other.memoryUsedMb &&
+      gpu.memoryTotalMb === other.memoryTotalMb &&
+      gpu.utilizationPct === other.utilizationPct
+    )
+  })
 }

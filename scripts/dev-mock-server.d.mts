@@ -32,6 +32,21 @@ export interface MockServerOptions {
   emptyContent?: boolean
   /** Make every activation end in `error`, for the failure banner and logs modal. */
   activationFails?: boolean
+  /**
+   * Accelerators for `/admin/state`. Empty by default — what Ollama produces.
+   * A vLLM deployment populates it, so this covers that path in advance.
+   */
+  gpu?: GpuReading[]
+  /** How many lines `/admin/logs` returns. Default 20; large values exercise scrolling. */
+  logLines?: number
+}
+
+export interface GpuReading {
+  index: number
+  name: string
+  memory_used_mb: number
+  memory_total_mb: number
+  utilization_pct: number
 }
 
 export interface MockServer {
@@ -41,6 +56,8 @@ export interface MockServer {
   setState(next: Partial<MockServerState>): void
   /** Make subsequent activations fail. */
   setActivationFails(value: boolean): void
+  /** Change the reported accelerators mid-session. */
+  setGpu(next: GpuReading[]): void
   listen(port?: number, host?: string): Promise<string>
   close(): Promise<void>
 }

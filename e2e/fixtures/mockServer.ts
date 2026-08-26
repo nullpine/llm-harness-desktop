@@ -31,6 +31,30 @@ export const TEST_LOAD_MS = 600
 /** A token gap that lets a test see a stream in progress without dragging. */
 export const TEST_TOKEN_DELAY_MS = 25
 
+/**
+ * A plausible H100 pair, matching the contract's own example (§3).
+ *
+ * Two cards rather than one: a single-GPU fixture would not catch a layout that
+ * assumes exactly one, and the Azure box in SPEC §4 is not guaranteed to be
+ * single-card forever.
+ */
+export const GPU_FIXTURE = [
+  {
+    index: 0,
+    name: 'NVIDIA H100 NVL',
+    memory_used_mb: 41_210,
+    memory_total_mb: 95_830,
+    utilization_pct: 73,
+  },
+  {
+    index: 1,
+    name: 'NVIDIA H100 NVL',
+    memory_used_mb: 0,
+    memory_total_mb: 95_830,
+    utilization_pct: 0,
+  },
+]
+
 export interface StartMockOptions extends MockServerOptions {
   /**
    * Bind a specific port. Only for the recovery tests, which need a server to

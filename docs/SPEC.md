@@ -224,7 +224,8 @@ interface ServerState {
   activeModelId: string | null
   progressHint: string | null
   lastError: string | null
-  gpu: { index: number; name: string; memoryUsedMb: number; memoryTotalMb: number }[]
+  gpu: { index: number; name: string; memoryUsedMb: number
+         memoryTotalMb: number; utilizationPct: number }[]   // [] on Ollama
 }
 ```
 

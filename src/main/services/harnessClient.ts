@@ -355,6 +355,7 @@ function toGpuInfo(raw: unknown): GpuInfo {
     name: asString(row.name) ?? 'unknown',
     memoryUsedMb: asNumber(row.memory_used_mb) ?? 0,
     memoryTotalMb: asNumber(row.memory_total_mb) ?? 0,
+    utilizationPct: asNumber(row.utilization_pct) ?? 0,
   }
 }
 
