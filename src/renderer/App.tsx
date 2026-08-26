@@ -6,13 +6,17 @@ import { ChatPane } from './components/chat/ChatPane'
 import { AppShell } from './components/layout/AppShell'
 import { Sidebar } from './components/layout/Sidebar'
 import { TitleBar } from './components/layout/TitleBar'
-import { ModelStatusPill } from './components/models/ModelStatusPill'
+import { ServerLogsModal } from './components/logs/ServerLogsModal'
+import { LoadingBanner } from './components/models/LoadingBanner'
+import { ModelDropdown } from './components/models/ModelDropdown'
+import { SwitchModelDialog } from './components/models/SwitchModelDialog'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { useIpcEvent } from './hooks/useIpcEvent'
 import { useAbort, useChatEvents, useSendMessage } from './hooks/useStreamingMessage'
 import { useChatStore } from './stores/useChatStore'
 import { useConversationStore } from './stores/useConversationStore'
 import { useServerStore } from './stores/useServerStore'
+import { findModel, useModelStore } from './stores/useModelStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 
 export function App() {
@@ -50,7 +54,9 @@ function Workspace() {
   const [firstRun] = useState(!configured)
 
   const { server, setServer, initialise } = useServerStore()
+  const models = useModelStore()
   const conversations = useConversationStore()
+  const [logsOpen, setLogsOpen] = useState(false)
   const { streams, activeRequestId } = useChatStore()
 
   const send = useSendMessage()
@@ -62,6 +68,7 @@ function Workspace() {
 
   useEffect(() => {
     void initialise()
+    void models.load()
     void conversations.loadList()
     // Once, on mount. The stores are module singletons, so re-running this on
     // every render would refetch the world.
@@ -69,7 +76,25 @@ function Workspace() {
   }, [])
 
   const stream = activeRequestId ? (streams[activeRequestId] ?? null) : null
-  const modelLabel = server.activeModelId ?? 'No model'
+  const activeModel = findModel(models.models, server.activeModelId)
+  const modelLabel = activeModel?.displayName ?? server.activeModelId ?? 'No model'
+
+  /** Catalog id -> display name, for message labels and transcript dividers. */
+  const displayName = useCallback(
+    (modelId: string) => findModel(models.models, modelId)?.displayName ?? modelId,
+    [models.models],
+  )
+
+  // The catalog is fetched once at startup, but a switch changes which entry is
+  // active and whether one is newly available — so re-read it when the server
+  // settles. Cheap, and it keeps the dropdown honest.
+  useEffect(() => {
+    if (server.state === 'ready' || server.state === 'error') {
+      void models.load()
+      models.finishSwitch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server.state])
 
   const onSend = useCallback(
     async (content: string) => {
@@ -97,10 +122,12 @@ function Workspace() {
             serverLabel={configured ? settings.serverUrl : 'not configured'}
             connected={server.state === 'ready'}
           >
-            <span className="flex items-center gap-2 text-sm">
-              <span className="font-medium">{modelLabel}</span>
-              <ModelStatusPill server={server} />
-            </span>
+            <ModelDropdown
+              models={models.models}
+              server={server}
+              onSelect={(model) => models.propose(model)}
+              disabled={server.state === 'loading' || server.state === 'stopping'}
+            />
           </TitleBar>
         }
       >
@@ -125,12 +152,32 @@ function Workspace() {
               stream={stream}
               server={server}
               modelLabel={modelLabel}
+              displayName={displayName}
+              banner={
+                <LoadingBanner
+                  server={server}
+                  startedAt={models.switchStartedAt}
+                  onViewLogs={() => setLogsOpen(true)}
+                />
+              }
               onSend={(content) => void onSend(content)}
               onStop={onStop}
             />
           </div>
         </div>
       </AppShell>
+
+      {models.pending ? (
+        <SwitchModelDialog
+          target={models.pending}
+          current={activeModel}
+          streaming={stream?.status === 'streaming'}
+          onCancel={() => models.propose(null)}
+          onConfirm={() => void models.confirm()}
+        />
+      ) : null}
+
+      {logsOpen ? <ServerLogsModal onClose={() => setLogsOpen(false)} /> : null}
 
       {settingsOpen ? (
         <SettingsModal

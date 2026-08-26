@@ -30,6 +30,8 @@ export interface MockServerOptions {
   finishReason?: 'stop' | 'length' | 'content_filter'
   /** Stream reasoning only — a reasoning model that ran out of budget. */
   emptyContent?: boolean
+  /** Make every activation end in `error`, for the failure banner and logs modal. */
+  activationFails?: boolean
 }
 
 export interface MockServer {
@@ -37,6 +39,8 @@ export interface MockServer {
   readonly state: MockServerState
   /** Force a state, to exercise a guard without waiting on a timer. */
   setState(next: Partial<MockServerState>): void
+  /** Make subsequent activations fail. */
+  setActivationFails(value: boolean): void
   listen(port?: number, host?: string): Promise<string>
   close(): Promise<void>
 }

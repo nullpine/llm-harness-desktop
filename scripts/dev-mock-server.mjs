@@ -87,6 +87,8 @@ const ERROR_STATUS = {
  *   Set to "length" to exercise the truncation note.
  * @param {boolean} [options.emptyContent] stream reasoning only, no content — what a
  *   reasoning model does when the token budget runs out mid-thought.
+ * @param {boolean} [options.activationFails] make every activation end in `error`
+ *   with a `last_error`, for exercising the failure banner and the logs modal.
  */
 export function createMockServer(options = {}) {
   const loadMs = options.loadMs ?? Number(process.env.MOCK_LOAD_MS ?? 8000)
@@ -94,6 +96,7 @@ export function createMockServer(options = {}) {
   const apiKey = options.apiKey ?? process.env.MOCK_API_KEY ?? DEFAULT_API_KEY
   const finishReason = options.finishReason ?? 'stop'
   const emptyContent = options.emptyContent ?? false
+  let activationFails = options.activationFails ?? false
   const startedAt = Date.now()
 
   const state = {
@@ -280,11 +283,25 @@ export function createMockServer(options = {}) {
       }
       clearInterval(activationTimer)
       activationTimer = null
+      state.since = new Date().toISOString()
+      job.finished_at = new Date().toISOString()
+
+      if (activationFails) {
+        // What a real failed load looks like: error, a reason, and log lines the
+        // desktop's "View server logs" modal can show.
+        state.state = 'error'
+        state.progressHint = null
+        state.lastError = `could not load ${model.id}: out of memory`
+        job.status = 'failed'
+        job.error = state.lastError
+        job.log_tail = ['ERROR loading weights', 'ERROR out of memory']
+        return
+      }
+
       state.state = 'ready'
       state.progressHint = null
-      state.since = new Date().toISOString()
+      state.lastError = null
       job.status = 'succeeded'
-      job.finished_at = new Date().toISOString()
     }, stepMs)
     activationTimer.unref?.()
   }
@@ -421,6 +438,10 @@ export function createMockServer(options = {}) {
     /** Force a state for testing the guards without waiting on a timer. */
     setState(next) {
       Object.assign(state, next)
+    },
+    /** Make the next activation fail, for the failure-banner path. */
+    setActivationFails(value) {
+      activationFails = value
     },
     async listen(port = 0, host = '127.0.0.1') {
       server.listen(port, host)

@@ -269,15 +269,26 @@ conversation file must never crash the app — log it and skip the entry.
 
 ### 8.1 Model dropdown
 
-- Lists every model from `GET /admin/models`, with the active one marked.
+- Lists every model from `GET /admin/models`, with the active one marked. A model
+  with `available: false` is still selectable, but the dialog warns that the
+  weights must be fetched first and the load will take much longer.
 - Status pill next to the name: `ready` (green), `loading` (amber, animated),
   `idle` (grey), `error` (red), `unreachable` (grey outline).
 - Selecting a **different** model opens a confirmation dialog:
 
   > **Switch to Qwen 3.8 27B?**
-  > This unloads GLM 4.7 Flash from the GPU and loads Qwen 3.8 27B.
-  > Takes about 2 minutes. Any reply in progress will be cancelled.
+  > This unloads GLM 4.7 Flash and loads Qwen 3.8 27B.
+  > Takes about {estimatedLoadSeconds}. Any reply in progress will be cancelled.
   > `[Cancel]` `[Switch]`
+
+  **The duration is data, not copy.** It is `estimatedLoadSeconds` from the
+  catalog entry, which the server measures on the hardware actually in use — 10 s
+  and 12 s for the two Ollama models, against the ~2 minutes an earlier draft of
+  this section assumed from vLLM-on-H100 figures. The client renders whatever the
+  server reports and hardcodes nothing: a dialog promising two minutes before a
+  ten-second wait teaches people to distrust every estimate the app gives them.
+  If the advertised time is wrong, the fix is `estimated_load_seconds` in the
+  server's `models.yaml`, not a string here.
 
 - On confirm: `models:activate`, then the composer is disabled and a load banner
   appears above it showing elapsed time and `progressHint` from the server.

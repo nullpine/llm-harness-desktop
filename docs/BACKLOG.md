@@ -65,23 +65,36 @@ Nothing runs yet; everything is in place to start.
 - [ ] `— switched to X —` divider in the transcript; per-message `modelId` label
 - [ ] `unreachable` state handling and automatic recovery
 
-**Exit:** A4, A5, A6.
+**Exit:** A4, A5, A6 — all covered by `e2e/switching.spec.ts`.
 
 ---
 
 ## M4 — Harden (2 days)
 
 - [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
+- [ ] **Server:** `/admin/logs` is empty on the Ollama backend. The ring buffer is
+      fed only by the vLLM backend's stdout pump, so "View server logs" — the one
+      place raw server output is deliberately shown — renders "no log lines" on
+      the path we actually run. The modal handles it gracefully, but the button
+      promises something the server cannot supply. Fix belongs in
+      `llm-harness-server`: feed `logbuf` from the control plane's own log
+      records, or from the daemon, on the Ollama path.
 - [ ] Reconsider SPEC §9's flat 60s backoff after three failures. It is correct as
       specified, but a user who has just fixed their own config waits up to a
       minute with no feedback. An escalating retry (5s, 15s, 30s, 60s) would keep
       the quiet-period benefit without the dead minute.
 
+      Related, found during M3: detecting that the **control plane** has died
+      takes up to 90 s — 30 s settled poll x 3 consecutive failures — which
+      exceeds A6's "within 60 s". A dead *model* is fine, because the server
+      reports `error` itself and the next poll sees it inside 30 s. Either the
+      failure count or the settled interval has to come down for the
+      client-side path to meet the criterion.
+
 **Acceptance coverage.** A1, A2, A3, A7, A8, A9, A10 and A12 are covered by the e2e
 harness and re-checked on every CI run. Manual verification from here is only for
-criteria the harness cannot reach: **A4, A5, A6** (the dropdown, which needs a real
-second model loaded on real hardware) and **A11** (the dmg launching on a clean
-machine).
+criteria the harness cannot reach: **A11** (the dmg launching on a clean machine).
+A4, A5 and A6 joined the harness in M3.
 
 **Exit (desktop):** the items above. The B-list exit criteria are server-side.
 

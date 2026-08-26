@@ -15,6 +15,9 @@ interface ChatPaneProps {
   stream: StreamBuffer | null
   server: ServerState
   modelLabel: string
+  displayName: (modelId: string) => string
+  /** The load banner and its failure path sit between transcript and composer. */
+  banner: React.ReactNode
   onSend: (content: string) => void
   onStop: () => void
 }
@@ -26,6 +29,8 @@ export function ChatPane({
   stream,
   server,
   modelLabel,
+  displayName,
+  banner,
   onSend,
   onStop,
 }: ChatPaneProps) {
@@ -45,6 +50,7 @@ export function ChatPane({
           conversation={conversation}
           stream={stream}
           modelLabel={modelLabel}
+          displayName={displayName}
           onRetry={onSend}
           onRegenerate={onSend}
         />
@@ -55,6 +61,8 @@ export function ChatPane({
           </p>
         </div>
       )}
+
+      {banner}
 
       <Composer
         disabledReason={disabledReason}
