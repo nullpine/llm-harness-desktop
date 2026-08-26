@@ -72,6 +72,10 @@ Nothing runs yet; everything is in place to start.
 ## M4 — Harden (2 days)
 
 - [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
+- [ ] Reconsider SPEC §9's flat 60s backoff after three failures. It is correct as
+      specified, but a user who has just fixed their own config waits up to a
+      minute with no feedback. An escalating retry (5s, 15s, 30s, 60s) would keep
+      the quiet-period benefit without the dead minute.
 
 **Acceptance coverage.** A1, A2, A3, A7, A8, A9, A10 and A12 are covered by the e2e
 harness and re-checked on every CI run. Manual verification from here is only for

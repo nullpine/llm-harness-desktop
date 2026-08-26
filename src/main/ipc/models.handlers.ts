@@ -39,6 +39,12 @@ export function registerModelHandlers(deps: ModelHandlerDeps): void {
       return { ok: false, error: errorCopy(authenticated.error) }
     }
 
+    // A successful authenticated call *is* proof of reachability, so apply it
+    // rather than discarding it. Without this the poller keeps its 60 s
+    // unreachable backoff and the header contradicts the result the user is
+    // looking at — which is what made this hard to diagnose in the first place.
+    deps.refreshState?.()
+
     return {
       ok: true,
       version: health.value.version,

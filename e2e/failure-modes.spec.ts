@@ -177,8 +177,10 @@ test('unreachable: friendly copy, and automatic recovery once the server returns
 
 test('Test connection and the header agree after a server comes back', async () => {
   test.setTimeout(UNREACHABLE_RECOVERY_MS + 30_000)
-  // The open question from M2 finding 5: does a successful Test connection leave
-  // the header stale, or do the two agree?
+  // Settled: a successful authenticated test refreshes the poller, so the header
+  // updates immediately rather than waiting out the 60 s unreachable backoff.
+  // Before that, Test connection could report success while the header still
+  // read `unreachable` — and the disagreement was the confusing part.
   const deadPort = 59_996
   const app = await launchApp()
 
@@ -193,12 +195,19 @@ test('Test connection and the header agree after a server comes back', async () 
       await app.window.getByRole('button', { name: 'Test connection' }).click()
       await expect(app.window.locator('[data-testid="test-outcome"]')).toContainText('Connected')
 
+      // The header must agree, *before* saving and well inside the 60 s backoff.
+      //
+      // Note what this does and does not prove. It asserts the user-visible
+      // property — test result and header never contradict each other — but it
+      // does not isolate `server:test`'s own poller refresh: `runTest` persists
+      // the draft URL first, and `settings:set` refreshes the poller as a side
+      // effect, so this passes either way. The wiring itself is pinned by
+      // `src/main/__tests__/serverTest.test.ts`, which fails without it.
+      await waitForState(app.window, 'ready', 15_000)
+
+      // And saving does not undo it.
       await app.window.getByRole('button', { name: 'Save' }).click()
-      // Saving settings *does* refresh the poller (settings:set calls
-      // poller.refresh()), so this should be prompt — unlike recovery with no
-      // user action at all. `server:test` alone does not, which is the open
-      // finding from M2.
-      await waitForState(app.window, 'ready', UNREACHABLE_RECOVERY_MS)
+      await waitForState(app.window, 'ready', 15_000)
     } finally {
       await mock.server.close()
     }
