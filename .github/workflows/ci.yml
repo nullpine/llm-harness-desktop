@@ -1,0 +1,43 @@
+name: CI
+
+# M0 scope: typecheck -> lint -> test, plus the shared-contract hash guard.
+#
+# docs/PROJECT-STRUCTURE.md describes this workflow as "typecheck -> lint -> unit ->
+# build (ubuntu + macos)". There is no app to build yet -- src/main/index.ts and
+# src/renderer/App.tsx are empty placeholders, so electron-builder has nothing to
+# package. The build job and the macOS leg land in M1 with the app shell; update
+# PROJECT-STRUCTURE.md then.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Contract hash
+        run: node scripts/check-contract-hash.mjs
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test

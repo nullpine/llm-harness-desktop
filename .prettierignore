@@ -1,0 +1,9 @@
+node_modules
+out
+dist
+package-lock.json
+
+# Prose is reviewed by humans, not reflowed by a formatter. docs/API-CONTRACT.md in
+# particular is hash-checked against the server repo and must stay byte-identical.
+docs/
+*.md

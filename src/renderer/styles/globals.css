@@ -1,0 +1,12 @@
+/*
+ * Tailwind v4 entrypoint.
+ *
+ * v4 replaced the three `@tailwind base/components/utilities` directives with a
+ * single `@import`; the old directives still parse but `@tailwind base` emits
+ * neither preflight nor the theme variables, so they are not an option here.
+ * `@config` keeps `tailwind.config.ts` — and its content globs — authoritative.
+ */
+@import 'tailwindcss';
+@config '../../../tailwind.config.ts';
+
+/* Theme variables live here; M1 fills them in alongside the app shell. */
