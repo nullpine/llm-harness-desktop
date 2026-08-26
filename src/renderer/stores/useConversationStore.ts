@@ -17,6 +17,14 @@ interface ConversationStoreState {
   active: Conversation | null
   loading: boolean
   error: AppError | null
+  /**
+   * Ids whose file would not parse. They stay in the sidebar — the entry comes
+   * from index.json, which is usually fine — but marked, so a damaged
+   * conversation is not silently indistinguishable from an empty one.
+   */
+  damaged: string[]
+  /** The one the user tried to open and could not. */
+  damagedActiveId: string | null
 
   loadList: () => Promise<void>
   open: (id: string) => Promise<void>
@@ -24,6 +32,8 @@ interface ConversationStoreState {
   reload: () => Promise<void>
   rename: (id: string, title: string) => Promise<void>
   remove: (id: string) => Promise<void>
+  /** Drop a damaged entry from the list, leaving its file on disk. */
+  forget: (id: string) => Promise<void>
 }
 
 export const useConversationStore = create<ConversationStoreState>((set, get) => ({
@@ -31,6 +41,8 @@ export const useConversationStore = create<ConversationStoreState>((set, get) =>
   active: null,
   loading: false,
   error: null,
+  damaged: [],
+  damagedActiveId: null,
 
   loadList: async () => {
     const result = await window.api.conversations.list()
@@ -41,10 +53,24 @@ export const useConversationStore = create<ConversationStoreState>((set, get) =>
   open: async (id) => {
     set({ loading: true, error: null })
     const result = await window.api.conversations.get(id)
-    if (result.ok) set({ active: result.value, loading: false })
-    // A10: a conversation that failed to parse is absent rather than fatal, so
-    // this is a normal "could not open" rather than a crash.
-    else set({ error: result.error, loading: false, active: null })
+    if (result.ok) {
+      set((state) => ({
+        active: result.value,
+        loading: false,
+        damagedActiveId: null,
+        damaged: state.damaged.filter((entry) => entry !== id),
+      }))
+      return
+    }
+    // A10: the file would not parse. Remember which one, so the main pane can
+    // say so instead of rendering the ordinary empty state.
+    set((state) => ({
+      error: result.error,
+      loading: false,
+      active: null,
+      damagedActiveId: id,
+      damaged: state.damaged.includes(id) ? state.damaged : [...state.damaged, id],
+    }))
   },
 
   create: async (modelId) => {
@@ -94,6 +120,21 @@ export const useConversationStore = create<ConversationStoreState>((set, get) =>
     set((state) => ({
       summaries: state.summaries.filter((s) => s.id !== id),
       active: state.active?.id === id ? null : state.active,
+      damaged: state.damaged.filter((entry) => entry !== id),
+      damagedActiveId: state.damagedActiveId === id ? null : state.damagedActiveId,
+    }))
+  },
+
+  forget: async (id) => {
+    const result = await window.api.conversations.forget(id)
+    if (!result.ok) {
+      set({ error: result.error })
+      return
+    }
+    set((state) => ({
+      summaries: state.summaries.filter((s) => s.id !== id),
+      damaged: state.damaged.filter((entry) => entry !== id),
+      damagedActiveId: state.damagedActiveId === id ? null : state.damagedActiveId,
     }))
   },
 }))

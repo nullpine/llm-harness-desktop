@@ -25,7 +25,11 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     if (!conversation) {
       // A10 in the foreground: a conversation skipped at load time is simply
       // absent, and the renderer says so rather than hanging.
-      throw failWith(appError('not_found', 'That conversation could not be opened.'))
+      // The renderer turns this into a distinct "damaged" pane rather than the
+      // empty state, which otherwise looks like an ordinary empty chat.
+      throw failWith(
+        appError('not_found', "This conversation's file is damaged and couldn't be opened."),
+      )
     }
     return conversation
   })
@@ -46,4 +50,6 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
   )
 
   handle<{ id: string }, void>(IPC.convDelete, logger, ({ id }) => conversations.delete(id))
+
+  handle<{ id: string }, void>(IPC.convForget, logger, ({ id }) => conversations.forget(id))
 }

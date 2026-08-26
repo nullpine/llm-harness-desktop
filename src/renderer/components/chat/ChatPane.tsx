@@ -1,6 +1,7 @@
 import type { Conversation } from '@shared/types'
 import type { ServerState } from '@shared/types'
 
+import { DamagedConversation } from '../conversations/DamagedConversation'
 import { composerDisabledReason } from '../../lib/errorCopy'
 import type { StreamBuffer } from '../../stores/useChatStore'
 import { Composer } from './Composer'
@@ -8,6 +9,9 @@ import { MessageList } from './MessageList'
 
 interface ChatPaneProps {
   conversation: Conversation | null
+  /** Set when the selected conversation's file would not parse (A10). */
+  damagedId: string | null
+  onForget: () => void
   stream: StreamBuffer | null
   server: ServerState
   modelLabel: string
@@ -17,6 +21,8 @@ interface ChatPaneProps {
 
 export function ChatPane({
   conversation,
+  damagedId,
+  onForget,
   stream,
   server,
   modelLabel,
@@ -32,7 +38,9 @@ export function ChatPane({
 
   return (
     <section className="flex h-full flex-col">
-      {conversation ? (
+      {damagedId ? (
+        <DamagedConversation onForget={onForget} />
+      ) : conversation ? (
         <MessageList
           conversation={conversation}
           stream={stream}
@@ -51,7 +59,11 @@ export function ChatPane({
       <Composer
         disabledReason={disabledReason}
         streaming={streaming}
-        placeholder={`Message ${modelLabel}…`}
+        placeholder={
+          // `Message no model…` is what the naive template produced when the
+          // fallback display name got substituted.
+          server.activeModelId ? `Message ${modelLabel}…` : 'No model available'
+        }
         onSend={onSend}
         onStop={onStop}
       />

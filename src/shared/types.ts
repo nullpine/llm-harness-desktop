@@ -25,6 +25,14 @@ export interface Message {
   content: string
   /** From `delta.reasoning_content` (vLLM) or `delta.reasoning` (Ollama). */
   reasoning?: string
+  /**
+   * How long the model spent reasoning: first reasoning chunk to first content
+   * chunk, or to the end of the stream when no content ever arrives.
+   *
+   * Persisted rather than derived from the live buffer, because the buffer is
+   * unreachable the moment the stream ends and the transcript reloads from disk.
+   */
+  reasoningMs?: number
   /** Which model produced it. Assistant messages only. */
   modelId?: string
   createdAt: string

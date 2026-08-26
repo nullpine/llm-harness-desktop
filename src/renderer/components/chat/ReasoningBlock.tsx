@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { formatSeconds } from '../../lib/format'
+import { hasReasoning } from '../../lib/reasoning'
 
 /**
  * The collapsed Thinking block (SPEC §8.2).
@@ -20,7 +21,7 @@ export function ReasoningBlock({
   seconds: number
 }) {
   const [open, setOpen] = useState(false)
-  if (text.trim() === '') return null
+  if (!hasReasoning(text)) return null
 
   return (
     <div className="mb-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)]">

@@ -29,6 +29,8 @@ export interface ConversationRepository {
   appendMessage(id: string, message: Message): Promise<void>
   rename(id: string, title: string): Promise<void>
   delete(id: string): Promise<void>
+  /** Drop from the index; leave the file alone. */
+  forget(id: string): Promise<void>
 }
 
 export interface ConversationStoreOptions {
@@ -126,6 +128,19 @@ export class ConversationStore implements ConversationRepository {
   async delete(id: string): Promise<void> {
     if (!isSafeId(id)) throw new Error(`unsafe conversation id: ${id}`)
     await rm(this.conversationPath(id), { force: true })
+    const index = (await this.readIndex()) ?? (await this.rebuildIndex())
+    await this.writeIndex(index.filter((entry) => entry.id !== id))
+  }
+
+  /**
+   * Remove an entry from the index without deleting anything.
+   *
+   * For a damaged conversation: the user wants it gone from the sidebar, but the
+   * file may still be recoverable by hand and destroying it is not ours to
+   * decide. A rebuild would resurrect the entry, so this is a bit leaky by
+   * design — the alternative is silently deleting someone's data.
+   */
+  async forget(id: string): Promise<void> {
     const index = (await this.readIndex()) ?? (await this.rebuildIndex())
     await this.writeIndex(index.filter((entry) => entry.id !== id))
   }

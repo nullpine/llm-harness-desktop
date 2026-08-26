@@ -53,6 +53,7 @@ export const IPC = {
   convAppendMessage: 'conv:appendMessage',
   convRename: 'conv:rename',
   convDelete: 'conv:delete',
+  convForget: 'conv:forget',
   logsFetch: 'logs:fetch',
 } as const
 
@@ -123,6 +124,14 @@ export interface IpcInvoke {
   [IPC.convAppendMessage]: [{ id: string; message: Message }, void]
   [IPC.convRename]: [{ id: string; title: string }, void]
   [IPC.convDelete]: [{ id: string }, void]
+  /**
+   * Drop an entry from the index without touching the file on disk.
+   *
+   * For a conversation whose file is damaged: the user wants it out of the
+   * sidebar, but the bytes may still be recoverable by hand, so deleting them
+   * is not ours to decide.
+   */
+  [IPC.convForget]: [{ id: string }, void]
   [IPC.logsFetch]: [LogsRequest, { lines: string[] }]
 }
 

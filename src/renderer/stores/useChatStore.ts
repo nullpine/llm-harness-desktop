@@ -27,6 +27,9 @@ export interface StreamBuffer {
   usage: MessageUsage | undefined
   startedAt: number
   endedAt: number | null
+  /** When reasoning and content first arrived, for the Thinking label. */
+  firstReasoningAt: number | null
+  firstContentAt: number | null
   /** The text that produced it, so Retry can re-send exactly this. */
   prompt: string
 }
@@ -63,6 +66,8 @@ export const useChatStore = create<ChatStoreState>((set) => ({
           usage: undefined,
           startedAt: Date.now(),
           endedAt: null,
+          firstReasoningAt: null,
+          firstContentAt: null,
           prompt,
         },
       },
@@ -74,6 +79,7 @@ export const useChatStore = create<ChatStoreState>((set) => ({
       // A chunk for a stream we never started is not an error — it can arrive
       // after a reload — but there is nothing to append it to.
       if (!stream) return state
+      const now = Date.now()
       return {
         streams: {
           ...state.streams,
@@ -81,6 +87,10 @@ export const useChatStore = create<ChatStoreState>((set) => ({
             ...stream,
             content: kind === 'content' ? stream.content + delta : stream.content,
             reasoning: kind === 'reasoning' ? stream.reasoning + delta : stream.reasoning,
+            firstContentAt:
+              kind === 'content' ? (stream.firstContentAt ?? now) : stream.firstContentAt,
+            firstReasoningAt:
+              kind === 'reasoning' ? (stream.firstReasoningAt ?? now) : stream.firstReasoningAt,
           },
         },
       }
@@ -134,8 +144,15 @@ export const useChatStore = create<ChatStoreState>((set) => ({
     }),
 }))
 
-/** How long the reasoning phase took, for the `Thinking (Ns)` label. */
+/**
+ * How long the model spent reasoning, in seconds.
+ *
+ * First reasoning chunk to first content chunk — not stream start to stream end,
+ * which counts the time spent writing the answer as thinking. Zero when no
+ * reasoning ever arrived, which is also the signal not to render the block.
+ */
 export function thinkingSeconds(stream: StreamBuffer): number {
-  const end = stream.endedAt ?? Date.now()
-  return Math.max(0, (end - stream.startedAt) / 1000)
+  if (stream.firstReasoningAt === null) return 0
+  const end = stream.firstContentAt ?? stream.endedAt ?? Date.now()
+  return Math.max(0, (end - stream.firstReasoningAt) / 1000)
 }

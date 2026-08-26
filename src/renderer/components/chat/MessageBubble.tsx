@@ -40,6 +40,11 @@ export function MessageBubble({
   const content = streaming?.active ? streaming.content : message.content
   const reasoning = streaming?.active ? streaming.reasoning : (message.reasoning ?? '')
 
+  // Live buffer while streaming; the persisted number afterwards. The buffer
+  // becomes unreachable the moment the stream ends and the transcript reloads
+  // from disk, which is why the label used to read 0.0s on every finished reply.
+  const reasoningSeconds = streaming?.active ? streaming.seconds : (message.reasoningMs ?? 0) / 1000
+
   // Only once the stream has finished: mid-stream there is no finish reason yet,
   // and flashing "cut off" at a reply still arriving would be wrong.
   const truncation = streaming?.active ? null : truncationNote(message.finishReason, content)
@@ -73,7 +78,7 @@ export function MessageBubble({
           <ReasoningBlock
             text={reasoning}
             streaming={streaming?.active ?? false}
-            seconds={streaming?.seconds ?? 0}
+            seconds={reasoningSeconds}
           />
         ) : null}
 

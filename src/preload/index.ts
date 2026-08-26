@@ -84,6 +84,7 @@ const api: HarnessApi = {
       invoke<void>(IPC.convAppendMessage, { id, message }),
     rename: (id: string, title: string) => invoke<void>(IPC.convRename, { id, title }),
     delete: (id: string) => invoke<void>(IPC.convDelete, { id }),
+    forget: (id: string) => invoke<void>(IPC.convForget, { id }),
   },
   logs: {
     fetch: (request: LogsRequest) => invoke<{ lines: string[] }>(IPC.logsFetch, request),

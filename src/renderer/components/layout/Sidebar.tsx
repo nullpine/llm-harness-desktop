@@ -6,6 +6,7 @@ import { Button } from '../ui/Button'
 interface SidebarProps {
   summaries: ConversationSummary[]
   activeId: string | null
+  damagedIds: string[]
   onNew: () => void
   onSelect: (id: string) => void
   onRename: (id: string, title: string) => void
@@ -24,6 +25,7 @@ export function Sidebar(props: SidebarProps) {
         <ConversationList
           summaries={props.summaries}
           activeId={props.activeId}
+          damagedIds={props.damagedIds}
           onSelect={props.onSelect}
           onRename={props.onRename}
           onDelete={props.onDelete}

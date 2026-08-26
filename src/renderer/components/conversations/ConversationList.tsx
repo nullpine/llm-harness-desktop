@@ -6,6 +6,7 @@ import { ConversationItem } from './ConversationItem'
 interface ConversationListProps {
   summaries: ConversationSummary[]
   activeId: string | null
+  damagedIds: string[]
   onSelect: (id: string) => void
   onRename: (id: string, title: string) => void
   onDelete: (id: string) => void
@@ -14,6 +15,7 @@ interface ConversationListProps {
 export function ConversationList({
   summaries,
   activeId,
+  damagedIds,
   onSelect,
   onRename,
   onDelete,
@@ -36,6 +38,7 @@ export function ConversationList({
               key={conversation.id}
               conversation={conversation}
               active={conversation.id === activeId}
+              damaged={damagedIds.includes(conversation.id)}
               onSelect={() => onSelect(conversation.id)}
               onRename={(title) => onRename(conversation.id, title)}
               onDelete={() => onDelete(conversation.id)}

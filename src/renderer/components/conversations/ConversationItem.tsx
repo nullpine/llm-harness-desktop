@@ -5,6 +5,8 @@ import type { ConversationSummary } from '@shared/types'
 export interface ConversationItemProps {
   conversation: ConversationSummary
   active: boolean
+  /** Its file would not parse. Shown differently rather than as a normal entry. */
+  damaged?: boolean
   onSelect: () => void
   onRename: (title: string) => void
   onDelete: () => void
@@ -13,6 +15,7 @@ export interface ConversationItemProps {
 export function ConversationItem({
   conversation,
   active,
+  damaged = false,
   onSelect,
   onRename,
   onDelete,
@@ -52,8 +55,20 @@ export function ConversationItem({
           : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-overlay)]'
       }`}
     >
-      <button type="button" onClick={onSelect} className="flex-1 truncate text-left">
-        {conversation.title}
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex flex-1 items-center gap-1.5 truncate text-left"
+        title={damaged ? "This conversation's file is damaged" : conversation.title}
+      >
+        {damaged ? (
+          <span aria-label="damaged" className="text-[var(--color-danger)]">
+            ⚠
+          </span>
+        ) : null}
+        <span className={`truncate ${damaged ? 'italic opacity-70' : ''}`}>
+          {conversation.title}
+        </span>
       </button>
 
       {confirmingDelete ? (

@@ -66,6 +66,8 @@ export interface HarnessApi {
     appendMessage(id: string, message: Message): Promise<Result<void>>
     rename(id: string, title: string): Promise<Result<void>>
     delete(id: string): Promise<Result<void>>
+    /** Remove from the list, leaving the file on disk. */
+    forget(id: string): Promise<Result<void>>
   }
   readonly logs: {
     fetch(request: LogsRequest): Promise<Result<{ lines: string[] }>>

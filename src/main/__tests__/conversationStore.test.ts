@@ -7,7 +7,7 @@
  * an app that will not open — which the user cannot work around.
  */
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -216,6 +216,36 @@ describe('A10: a malformed conversation file is skipped, not fatal', () => {
     writeFileSync(join(directory, 'index.json'), JSON.stringify([...index, { junk: true }, 42]))
 
     expect(await store.list()).toHaveLength(1)
+  })
+
+  it('forget() drops the entry but leaves the file on disk', async () => {
+    // A10: the file may be recoverable by hand, so removing it from the sidebar
+    // must not destroy it.
+    const created = await store.create({ modelId: 'm' })
+    const path = join(directory, `${created.id}.json`)
+    writeFileSync(path, '{ truncated')
+
+    await store.forget(created.id)
+
+    expect(await store.list()).toEqual([])
+    expect(existsSync(path)).toBe(true)
+  })
+
+  it('forget() on an unknown id is a no-op', async () => {
+    const created = await store.create({ modelId: 'm' })
+    await store.forget('NOTAREALID0123456789012345')
+    expect((await store.list()).map((s) => s.id)).toEqual([created.id])
+  })
+
+  it('a damaged file leaves its index entry in place — which is why the UI marks it', async () => {
+    // The entry comes from index.json, which is usually fine. Before the UI
+    // change this meant a damaged conversation looked like an ordinary empty one.
+    const created = await store.create({ modelId: 'm' })
+    await store.appendMessage(created.id, message({ content: 'hello' }))
+    writeFileSync(join(directory, `${created.id}.json`), '{ truncated')
+
+    expect((await store.list()).map((s) => s.id)).toEqual([created.id])
+    expect(await store.get(created.id)).toBeNull()
   })
 
   it('starts clean on an empty or missing directory', async () => {

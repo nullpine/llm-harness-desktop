@@ -44,7 +44,7 @@ export function App() {
   const settingsOpen = settingsRequested || firstRun
 
   const stream = activeRequestId ? (streams[activeRequestId] ?? null) : null
-  const modelLabel = server.activeModelId ?? 'no model'
+  const modelLabel = server.activeModelId ?? 'No model'
 
   const onSend = useCallback(
     async (content: string) => {
@@ -84,7 +84,8 @@ export function App() {
         <div className="flex h-full">
           <Sidebar
             summaries={conversations.summaries}
-            activeId={conversations.active?.id ?? null}
+            activeId={conversations.active?.id ?? conversations.damagedActiveId}
+            damagedIds={conversations.damaged}
             onNew={() => void conversations.create(server.activeModelId ?? '')}
             onSelect={(id) => void conversations.open(id)}
             onRename={(id, title) => void conversations.rename(id, title)}
@@ -93,6 +94,11 @@ export function App() {
           <div className="flex-1 overflow-hidden">
             <ChatPane
               conversation={conversations.active}
+              damagedId={conversations.damagedActiveId}
+              onForget={() => {
+                if (conversations.damagedActiveId)
+                  void conversations.forget(conversations.damagedActiveId)
+              }}
               stream={stream}
               server={server}
               modelLabel={modelLabel}

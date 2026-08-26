@@ -136,6 +136,10 @@ async function streamReply(args: StreamArgs): Promise<void> {
   let reasoning = ''
   let usage: MessageUsage | undefined
   let finishReason: FinishReason = null
+  // Reasoning time is the gap between the first reasoning token and the first
+  // content token — not the whole stream, which would count the answer too.
+  let firstReasoningAt: number | null = null
+  let firstContentAt: number | null = null
 
   const send = <T>(channel: string, payload: T): void => {
     const contents = deps.webContents()
@@ -149,7 +153,7 @@ async function streamReply(args: StreamArgs): Promise<void> {
       content,
       createdAt: new Date().toISOString(),
       modelId: args.modelId,
-      ...(reasoning !== '' ? { reasoning } : {}),
+      ...(reasoning !== '' ? { reasoning, reasoningMs: reasoningMs() } : {}),
       ...(usage ? { usage } : {}),
       ...extra,
     }
@@ -158,6 +162,12 @@ async function streamReply(args: StreamArgs): Promise<void> {
     } catch (cause) {
       deps.logger.error('could not persist the assistant message', cause)
     }
+  }
+
+  /** Elapsed reasoning time, ending at the first content token or at now. */
+  const reasoningMs = (): number => {
+    if (firstReasoningAt === null) return 0
+    return Math.max(0, (firstContentAt ?? Date.now()) - firstReasoningAt)
   }
 
   const fail = async (error: AppError): Promise<void> => {
@@ -184,8 +194,13 @@ async function streamReply(args: StreamArgs): Promise<void> {
       onIdleTimeout: () => controller.abort(),
     })) {
       if (event.type === 'delta') {
-        if (event.kind === 'content') content += event.text
-        else reasoning += event.text
+        if (event.kind === 'content') {
+          content += event.text
+          firstContentAt ??= Date.now()
+        } else {
+          reasoning += event.text
+          firstReasoningAt ??= Date.now()
+        }
         send<ChatChunkEvent>(IPC.chatChunk, {
           requestId,
           delta: event.text,

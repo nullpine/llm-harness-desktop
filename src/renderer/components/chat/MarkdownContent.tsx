@@ -1,7 +1,9 @@
 import { memo, useState } from 'react'
 import Markdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 
 import { useThrottledValue } from '../../hooks/useThrottledValue'
 
@@ -14,6 +16,11 @@ import { useThrottledValue } from '../../hooks/useThrottledValue'
  *
  * No `rehype-raw`. Model output is untrusted, and `react-markdown` escapes HTML
  * by default — the renderer's CSP is the second line of defence, not the first.
+ *
+ * Math is rendered because GLM writes `$…$` and `$$…$$` for anything remotely
+ * mathematical, and raw TeX makes a technical answer unreadable. KaTeX's CSS and
+ * fonts are imported (see `styles/globals.css`) so Vite emits them into the
+ * bundle: `font-src 'self'` covers them, and a CDN would simply be refused.
  */
 export const MarkdownContent = memo(function MarkdownContent({
   text,
@@ -30,8 +37,10 @@ export const MarkdownContent = memo(function MarkdownContent({
   return (
     <div className="markdown-body">
       <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        // Order matters: rehype-katex consumes the math nodes remark-math
+        // produced, and highlighting runs on what is left.
+        rehypePlugins={[rehypeKatex, rehypeHighlight]}
         components={{ pre: CodeBlock }}
       >
         {visible}
