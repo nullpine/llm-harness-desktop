@@ -5,31 +5,23 @@
  * so the API key is registered with the redactor before it can appear in a line.
  */
 
-import { app, BrowserWindow, safeStorage } from 'electron'
 import { join } from 'node:path'
 
+import { app, BrowserWindow, safeStorage } from 'electron'
+
 import { IPC } from '@shared/ipc'
-import { handleUnimplemented } from './ipc/index'
+import { registerChatHandlers } from './ipc/chat.handlers'
+import { registerConversationHandlers } from './ipc/conversations.handlers'
+import { registerLogsHandlers } from './ipc/logs.handlers'
 import { registerModelHandlers } from './ipc/models.handlers'
 import { registerSettingsHandlers } from './ipc/settings.handlers'
 import { Logger } from './lib/logger'
+import { ConversationStore } from './services/conversationStore'
 import { HarnessClient } from './services/harnessClient'
 import { SecretStore } from './services/secretStore'
+import { ServerPoller } from './services/serverPoller'
 import { SettingsStore } from './services/settingsStore'
 import { applyContentSecurityPolicy, createWindow } from './window'
-
-/** Channels declared in `shared/ipc.ts` whose handlers land in M2. */
-const M2_CHANNELS = [
-  IPC.chatSend,
-  IPC.chatAbort,
-  IPC.convList,
-  IPC.convGet,
-  IPC.convCreate,
-  IPC.convAppendMessage,
-  IPC.convRename,
-  IPC.convDelete,
-  IPC.logsFetch,
-] as const
 
 async function main(): Promise<void> {
   const userData = app.getPath('userData')
@@ -47,6 +39,10 @@ async function main(): Promise<void> {
   const secrets = new SecretStore({
     directory: userData,
     safeStorage,
+    onWarn: (message, meta) => logger.warn(message, meta),
+  })
+  const conversations = new ConversationStore({
+    directory: join(userData, 'conversations'),
     onWarn: (message, meta) => logger.warn(message, meta),
   })
 
@@ -72,27 +68,58 @@ async function main(): Promise<void> {
   }
   await refreshConfig()
 
+  let window: BrowserWindow | null = null
+  const webContents = (): BrowserWindow['webContents'] | null =>
+    window && !window.isDestroyed() ? window.webContents : null
+
+  const poller = new ServerPoller({
+    client,
+    logger,
+    onChange: (state) => {
+      const contents = webContents()
+      if (contents && !contents.isDestroyed()) contents.send(IPC.modelsStateChanged, state)
+    },
+  })
+
   registerSettingsHandlers({
     settings,
     secrets,
     logger,
-    onSettingsChanged: () => void refreshConfig(),
+    onSettingsChanged: () => {
+      void refreshConfig().then(() => poller.refresh())
+    },
   })
-  registerModelHandlers({ client, logger })
-  for (const channel of M2_CHANNELS) handleUnimplemented(channel, 'M2')
+  registerModelHandlers({ client, logger, refreshState: () => poller.refresh() })
+  registerConversationHandlers({
+    conversations,
+    logger,
+    defaultModelId: () => poller.state.activeModelId ?? '',
+  })
+  registerChatHandlers({
+    client,
+    conversations,
+    logger,
+    settings: async () => settings.get(await secrets.hasApiKey()),
+    activeModelId: () => poller.state.activeModelId,
+    webContents,
+  })
+  registerLogsHandlers({ client, logger })
 
   applyContentSecurityPolicy()
 
   const open = (): void => {
-    createWindow({
+    window = createWindow({
       preloadPath: join(import.meta.dirname, '../preload/index.mjs'),
       devServerUrl: process.env.ELECTRON_RENDERER_URL,
       rendererFile: join(import.meta.dirname, '../renderer/index.html'),
       onOpenExternal: (url) => logger.info('opening external link', { url }),
     })
+    // Focus is the cheapest signal that the user is looking at stale state.
+    window.on('focus', () => poller.refresh())
   }
 
   open()
+  poller.start()
   logger.info('main process ready', { version: app.getVersion(), packaged: app.isPackaged })
 
   app.on('activate', () => {
@@ -100,6 +127,7 @@ async function main(): Promise<void> {
   })
 
   app.on('window-all-closed', () => {
+    poller.stop()
     if (process.platform !== 'darwin') app.quit()
   })
 }
