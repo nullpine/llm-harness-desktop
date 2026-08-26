@@ -7,6 +7,12 @@
  * `@config` keeps `tailwind.config.ts` — and its content globs — authoritative.
  */
 @import 'tailwindcss';
+/*
+ * KaTeX, imported so Vite bundles the stylesheet *and* the fonts it references
+ * into out/renderer/assets. That is what makes `font-src 'self'` sufficient;
+ * pulling KaTeX from a CDN would be refused by the CSP (SPEC §5).
+ */
+@import 'katex/dist/katex.min.css';
 @config '../../../tailwind.config.ts';
 
 /*

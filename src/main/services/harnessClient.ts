@@ -130,6 +130,22 @@ export class HarnessClient {
     return ok(result)
   }
 
+  /** `GET /admin/logs` — the server's own logs, for the diagnosis modal. */
+  async getLogs(source: 'vllm' | 'control', lines: number): Promise<Result<{ lines: string[] }>> {
+    const capped = Math.max(1, Math.min(lines, 1000)) // the contract's cap (§3)
+    const response = await this.get(
+      `/admin/logs?lines=${capped}&source=${source}`,
+      REQUEST_TIMEOUT_MS,
+    )
+    if (!response.ok) return response
+    const body = response.value as Record<string, unknown>
+    return ok({
+      lines: Array.isArray(body.lines)
+        ? body.lines.filter((l): l is string => typeof l === 'string')
+        : [],
+    })
+  }
+
   /**
    * `POST /v1/chat/completions`, returning the undrained body.
    *

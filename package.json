@@ -21,11 +21,14 @@
     "build": "electron-vite build && electron-builder"
   },
   "dependencies": {
+    "katex": "^0.16.47",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",
     "rehype-highlight": "7.0.2",
+    "rehype-katex": "^7.0.1",
     "remark-gfm": "4.0.1",
+    "remark-math": "^6.0.0",
     "zustand": "5.0.15"
   },
   "devDependencies": {
@@ -45,9 +48,13 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.11.0",
     "prettier": "3.9.6",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.68.0",
+    "unified": "^11.0.5",
     "vite": "7.3.6",
     "vitest": "4.1.11"
   }

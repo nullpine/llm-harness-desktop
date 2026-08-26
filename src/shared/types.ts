@@ -11,6 +11,9 @@ export type Role = 'system' | 'user' | 'assistant'
 /** The server's model lifecycle (API contract §3). `unreachable` is client-only. */
 export type ModelState = 'idle' | 'loading' | 'ready' | 'stopping' | 'error'
 
+/** Why a stream ended. `abort` is ours — the user pressed Stop. */
+export type FinishReason = 'stop' | 'length' | 'content_filter' | 'abort' | null
+
 export interface MessageUsage {
   promptTokens: number
   completionTokens: number
@@ -22,6 +25,14 @@ export interface Message {
   content: string
   /** From `delta.reasoning_content` (vLLM) or `delta.reasoning` (Ollama). */
   reasoning?: string
+  /**
+   * How long the model spent reasoning: first reasoning chunk to first content
+   * chunk, or to the end of the stream when no content ever arrives.
+   *
+   * Persisted rather than derived from the live buffer, because the buffer is
+   * unreachable the moment the stream ends and the transcript reloads from disk.
+   */
+  reasoningMs?: number
   /** Which model produced it. Assistant messages only. */
   modelId?: string
   createdAt: string
@@ -29,6 +40,11 @@ export interface Message {
   error?: { code: string; message: string }
   /** The user pressed Stop. */
   stopped?: boolean
+  /**
+   * Why the stream ended. Persisted rather than left in the live buffer so a
+   * truncated reply still says so after the app is quit and reopened (A7).
+   */
+  finishReason?: FinishReason
 }
 
 export interface Conversation {
@@ -128,5 +144,3 @@ export interface ChatSendRequest {
   conversationId: string
   content: string
 }
-
-export type FinishReason = 'stop' | 'length' | 'content_filter' | 'abort' | null
