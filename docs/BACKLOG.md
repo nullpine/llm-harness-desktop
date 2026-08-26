@@ -36,7 +36,7 @@ Nothing runs yet; everything is in place to start.
 - [ ] Mock server serves both /healthz versions (`version` = contract, `service_version` = build) and the renamed /admin/models fields (`model_ref`, `available`)
 - [ ] `sseStream.ts` tolerates `delta.reasoning` (Ollama) as well as `delta.reasoning_content` (vLLM) — Ollama is the local MVP path, so this is the one that actually fires
 - [ ] Nothing keys off a chunk's `model` field; responses correlate by requestId only
-- [ ] e2e harness: playwright.config.ts and e2e/smoke.spec.ts are still empty M0 stubs, so `npm run test:e2e` does not run. Cover A1 (launch → Settings → Test connection) and A9 (zero renderer requests to the server origin, via CDP). Do this before M2 — the app is at its smallest now, and it gives M2 a regression net.
+- [x] e2e harness: `playwright.config.ts` and `e2e/` now drive the built app via `_electron`, covering A1, A2, A3, A7, A8, A9, A10 and A12. Runs in CI after `build`.
 
 **Exit (desktop):** A1, A8, A9 from `SPEC.md` §10.
 
@@ -72,6 +72,12 @@ Nothing runs yet; everything is in place to start.
 ## M4 — Harden (2 days)
 
 - [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
+
+**Acceptance coverage.** A1, A2, A3, A7, A8, A9, A10 and A12 are covered by the e2e
+harness and re-checked on every CI run. Manual verification from here is only for
+criteria the harness cannot reach: **A4, A5, A6** (the dropdown, which needs a real
+second model loaded on real hardware) and **A11** (the dmg launching on a clean
+machine).
 
 **Exit (desktop):** the items above. The B-list exit criteria are server-side.
 

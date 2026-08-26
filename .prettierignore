@@ -7,3 +7,7 @@ package-lock.json
 # particular is hash-checked against the server repo and must stay byte-identical.
 docs/
 *.md
+test-results/
+playwright-report/
+out/
+dist/

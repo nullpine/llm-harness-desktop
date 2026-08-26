@@ -52,12 +52,16 @@ export function Composer({
     <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-raised)] px-6 py-3">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
         {disabledReason ? (
-          <p className="text-xs text-[var(--color-text-muted)]">{disabledReason}</p>
+          <p data-testid="composer-disabled" className="text-xs text-[var(--color-text-muted)]">
+            {disabledReason}
+          </p>
         ) : null}
 
         <div className="flex items-end gap-2">
           <textarea
             ref={textarea}
+            aria-label="Message"
+            data-testid="composer"
             rows={1}
             value={value}
             placeholder={placeholder}

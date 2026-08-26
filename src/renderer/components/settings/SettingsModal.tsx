@@ -12,8 +12,17 @@ import { ConnectionSection } from './ConnectionSection'
 import { GenerationSection } from './GenerationSection'
 
 interface SettingsModalProps {
-  /** Undefined on first run: there is nothing behind the modal to go back to. */
-  onClose?: (() => void) | undefined
+  /**
+   * Always provided: Save closes the modal, and Save is what makes the app
+   * configured in the first place. Gating this on "is configured" made Save a
+   * no-op on first run, because the flag is still false at the moment it runs.
+   */
+  onClose: () => void
+  /**
+   * Whether the modal can be *dismissed* without saving. False on first run,
+   * where there is nothing behind it to go back to (SPEC §8.5).
+   */
+  dismissable: boolean
   firstRun: boolean
 }
 
@@ -25,7 +34,7 @@ interface SettingsModalProps {
  * and it has a real bug in it: the effect also refires whenever `settings`
  * changes, wiping whatever the user was mid-way through typing.
  */
-export function SettingsModal({ onClose, firstRun }: SettingsModalProps) {
+export function SettingsModal({ onClose, dismissable, firstRun }: SettingsModalProps) {
   const { settings, save, setApiKey, saving } = useSettingsStore()
 
   const [draft, setDraft] = useState<Settings>(settings)
@@ -85,20 +94,20 @@ export function SettingsModal({ onClose, firstRun }: SettingsModalProps) {
       setSaveError('Those settings could not be saved.')
       return
     }
-    onClose?.()
+    onClose()
   }
 
   return (
     <Dialog
       open
       title="Settings"
-      onClose={onClose}
+      onClose={dismissable ? onClose : undefined}
       footer={
         <>
           {saveError ? (
             <span className="mr-auto text-sm text-[var(--color-danger)]">{saveError}</span>
           ) : null}
-          {onClose ? (
+          {dismissable ? (
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>

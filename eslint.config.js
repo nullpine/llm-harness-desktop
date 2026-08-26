@@ -58,6 +58,15 @@ export default tseslint.config(
     },
   },
 
+  // Playwright inspects the destructuring pattern of a fixture's first argument
+  // to decide which fixtures to build, so `async ({}, use)` is required by its
+  // API for a fixture that depends on nothing. There is no rewrite that both
+  // satisfies `no-empty-pattern` and keeps Playwright working.
+  {
+    files: ['e2e/**/*.ts'],
+    rules: { 'no-empty-pattern': 'off' },
+  },
+
   // Must stay last: turns off everything Prettier owns.
   prettier,
 )

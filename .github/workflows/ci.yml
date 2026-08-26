@@ -67,3 +67,37 @@ jobs:
           test -f out/main/index.js
           test -f out/preload/index.mjs
           test -f out/renderer/index.html
+
+  e2e:
+    # After build, because the specs drive the *built* app: the dev CSP carve-out
+    # exists only in dev, so testing against the dev server would never exercise
+    # the strict policy that ships.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the app
+        run: npx electron-vite build
+
+      # Electron needs a display even to open an offscreen window.
+      - name: Run e2e
+        run: xvfb-run --auto-servernum npx playwright test
+
+      - name: Upload traces and screenshots
+        # A red CI run you cannot see is worse than none.
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

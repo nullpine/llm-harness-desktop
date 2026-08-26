@@ -1,6 +1,7 @@
 /** `models:*` and `server:test` — everything that talks to the harness server. */
 
 import { IPC, type ActivateResult, type ServerTestResult } from '@shared/ipc'
+import { serverTestError as errorCopy } from '@shared/testConnectionCopy'
 import type { ModelCatalog, ServerState } from '@shared/types'
 
 import type { Logger } from '../lib/logger'
@@ -21,12 +22,23 @@ export function registerModelHandlers(deps: ModelHandlerDeps): void {
    * `server:test` never rejects. The Settings modal renders whatever comes back,
    * and "could not connect" is a normal answer for a button whose whole purpose
    * is finding out whether you can connect.
+   *
+   * **Two calls, not one.** `/healthz` is unauthenticated by design (contract
+   * §3), so testing only that reports "✓ Connected" for a wrong API key — which
+   * is exactly the case the user is trying to diagnose. The authenticated call
+   * after it is what makes the answer mean anything.
    */
   handle<void, ServerTestResult>(IPC.serverTest, logger, async () => {
     const health = await client.getHealth()
     if (!health.ok) {
-      return { ok: false, error: health.error.message }
+      return { ok: false, error: errorCopy(health.error) }
     }
+
+    const authenticated = await client.getState()
+    if (!authenticated.ok) {
+      return { ok: false, error: errorCopy(authenticated.error) }
+    }
+
     return {
       ok: true,
       version: health.value.version,

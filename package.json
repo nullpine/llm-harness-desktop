@@ -17,7 +17,7 @@
     "lint:fix": "eslint . --fix && prettier --write .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "electron-vite build && playwright test",
     "build": "electron-vite build && electron-builder"
   },
   "dependencies": {

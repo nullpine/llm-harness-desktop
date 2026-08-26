@@ -60,6 +60,9 @@ export function MessageBubble({
     <article
       className={`group flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}
       aria-label={isUser ? 'Your message' : 'Assistant message'}
+      data-testid={isUser ? 'user-message' : 'assistant-message'}
+      data-streaming={streaming?.active ? 'true' : 'false'}
+      data-stopped={message.stopped ? 'true' : 'false'}
     >
       <header className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
         <span>{isUser ? 'You' : modelLabel}</span>
@@ -86,13 +89,18 @@ export function MessageBubble({
           <p className="whitespace-pre-wrap">{content}</p>
         ) : (
           <>
-            <MarkdownContent text={content} streaming={streaming?.active ?? false} />
+            <span data-testid="assistant-content" className="contents">
+              <MarkdownContent text={content} streaming={streaming?.active ?? false} />
+            </span>
             {streaming?.active ? <StreamingCursor /> : null}
           </>
         )}
 
         {truncation ? (
-          <p className="mt-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-overlay)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+          <p
+            data-testid="truncation-note"
+            className="mt-2 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-overlay)] px-3 py-2 text-xs text-[var(--color-text-muted)]"
+          >
             {truncation}
           </p>
         ) : null}
