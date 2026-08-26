@@ -65,8 +65,19 @@ jobs:
         # A build that silently emits nothing would otherwise pass.
         run: |
           test -f out/main/index.js
-          test -f out/preload/index.mjs
           test -f out/renderer/index.html
+
+      - name: Check the preload is CommonJS
+        # Not just "a preload exists": a *sandboxed* preload cannot be ESM, and
+        # package.json is "type": "module", so the format has to be forced
+        # (electron.vite.config.ts). Get it wrong and Electron rejects the file
+        # with "Cannot use import statement outside a module", `window.api` never
+        # gets defined, and the app renders a blank window whose only symptom is
+        # a line in the renderer console. Assert the invariant, not the filename.
+        run: |
+          test -f out/preload/index.cjs
+          grep -q 'require(' out/preload/index.cjs
+          ! grep -qE '^\s*import[ (]' out/preload/index.cjs
 
   e2e:
     # After build, because the specs drive the *built* app: the dev CSP carve-out
