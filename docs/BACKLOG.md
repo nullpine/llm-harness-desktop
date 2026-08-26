@@ -36,6 +36,7 @@ Nothing runs yet; everything is in place to start.
 - [ ] Mock server serves both /healthz versions (`version` = contract, `service_version` = build) and the renamed /admin/models fields (`model_ref`, `available`)
 - [ ] `sseStream.ts` tolerates `delta.reasoning` (Ollama) as well as `delta.reasoning_content` (vLLM) — Ollama is the local MVP path, so this is the one that actually fires
 - [ ] Nothing keys off a chunk's `model` field; responses correlate by requestId only
+- [ ] e2e harness: playwright.config.ts and e2e/smoke.spec.ts are still empty M0 stubs, so `npm run test:e2e` does not run. Cover A1 (launch → Settings → Test connection) and A9 (zero renderer requests to the server origin, via CDP). Do this before M2 — the app is at its smallest now, and it gives M2 a regression net.
 
 **Exit (desktop):** A1, A8, A9 from `SPEC.md` §10.
 
