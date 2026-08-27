@@ -18,6 +18,17 @@ export const POLL_INTERVAL_UNREACHABLE_MS = 60_000
 /** Consecutive failures before the state becomes `unreachable`. */
 export const POLL_FAILURES_BEFORE_UNREACHABLE = 3
 
+/**
+ * How long to wait after the 1st and 2nd consecutive failure.
+ *
+ * Fast to detect, slow to nag. A flat 30 s meant a dead control plane took up to
+ * 90 s to surface — outside A6's 60 s — while simply shortening the interval
+ * would have thrown away the quiet period the 30 s exists to provide. Escalating
+ * gives ~30 s to notice plus 20 s to confirm, and a server that really is down is
+ * still polled only once a minute.
+ */
+export const POLL_RETRY_BACKOFF_MS = [5_000, 15_000] as const
+
 // --- request timeouts (API-CONTRACT §4) -------------------------------------
 
 /** `GET /healthz` and `/admin/*`. */

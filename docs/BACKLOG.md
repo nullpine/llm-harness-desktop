@@ -71,8 +71,18 @@ Nothing runs yet; everything is in place to start.
 
 ## M4 — Harden (2 days)
 
-- [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
-- [ ] **Quit does not wait for in-flight writes — data loss, not a test problem.**
+- [x] Idle-chunk timeout — **audited, already worked.** `sseStream` honours
+      `SSE_IDLE_TIMEOUT_MS`, emits `stream_stalled`, and aborts the request; a
+      test already proved it fires. Nothing to implement.
+- [x] Retry on a failed message — **audited, was broken.** The button was gated on
+      `message.error && stream`, but `fail()` clears `activeRequestId`, so the
+      stream buffer is null exactly when a message has an error. Retry was
+      unreachable in the only case it exists for. Now keyed on the message alone.
+- [x] Error envelope → friendly copy (M2)
+- [x] **Quit waits for in-flight writes.** Fixed in M4: `before-quit` aborts live
+      streams through the Stop path and awaits the persists with a 2 s deadline.
+      *(Original report below, for the record.)*
+- [ ] ~~Quit does not wait for in-flight writes — data loss, not a test problem.~~
       Nothing handles `before-quit`; `window-all-closed` calls `app.quit()`
       immediately, and `chat:send` launches the stream as `void streamReply(...)`
       with nothing tracking it. Quitting mid-reply kills the process before
@@ -90,7 +100,10 @@ Nothing runs yet; everything is in place to start.
       promises something the server cannot supply. Fix belongs in
       `llm-harness-server`: feed `logbuf` from the control plane's own log
       records, or from the daemon, on the Ollama path.
-- [ ] Reconsider SPEC §9's flat 60s backoff after three failures. It is correct as
+- [x] Escalating backoff — 5 s, 15 s, then `unreachable` at 60 s. Worst case to
+      confirm a dead control plane is now ~50 s, inside A6. SPEC §9 and the §10
+      note updated. *(Original item below, for the record.)*
+- [ ] ~~Reconsider SPEC §9's flat 60s backoff after three failures.~~ It is correct as
       specified, but a user who has just fixed their own config waits up to a
       minute with no feedback. An escalating retry (5s, 15s, 30s, 60s) would keep
       the quiet-period benefit without the dead minute.
