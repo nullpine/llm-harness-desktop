@@ -72,12 +72,17 @@ Nothing runs yet; everything is in place to start.
 ## M4 — Harden (2 days)
 
 - [ ] Idle-chunk timeout, retry on a failed message, error envelope → friendly copy
-- [ ] Investigate a flaky e2e: `A7: the conversation and its transcript survive a
-      restart` failed once in a full run and passed alone and on the next full
-      run. Artifacts were overwritten before they could be read. It restarts the
-      app against a reused profile, so the likely culprit is a race between the
-      first app's shutdown write and the second's read. `retries` is 0 locally
-      and 1 in CI, so CI would currently mask this rather than report it.
+- [ ] **Quit does not wait for in-flight writes — data loss, not a test problem.**
+      Nothing handles `before-quit`; `window-all-closed` calls `app.quit()`
+      immediately, and `chat:send` launches the stream as `void streamReply(...)`
+      with nothing tracking it. Quitting mid-reply kills the process before
+      `persist()` runs, so the whole assistant message is lost. `atomicWrite`'s
+      tmp→rename means the file is intact-but-stale rather than corrupt, so the
+      damaged-conversation path never fires and nothing reports it. The
+      conversation file and `index.json` are also two separate atomic writes, so
+      a quit between them leaves a stale index that nothing detects.
+      Fix: `before-quit` → `preventDefault()`, await outstanding persists with a
+      short deadline, then `app.exit()`. Found while diagnosing the A7 flake.
 - [ ] **Server:** `/admin/logs` is empty on the Ollama backend. The ring buffer is
       fed only by the vLLM backend's stdout pump, so "View server logs" — the one
       place raw server output is deliberately shown — renders "no log lines" on
