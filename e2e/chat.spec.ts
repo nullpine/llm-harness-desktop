@@ -96,7 +96,12 @@ test('A7: the conversation and its transcript survive a restart', async () => {
     await waitForState(first.window, 'ready')
     await newChat(first.window)
     await send(first.window, 'Remember this exact sentence.')
+    // Wait for the stream to *finish*, not merely for text to appear. Rendered
+    // text comes from chat:chunk mid-stream, whereas main persists the assistant
+    // message just before chat:done — which is what flips this attribute. Closing
+    // on the text alone raced the write, and that is what made this flake.
     await expect(first.window.locator(assistant).last()).toContainText('mock response')
+    await expect(first.window.locator(assistant).last()).toHaveAttribute('data-streaming', 'false')
     transcript = await first.window.locator('main').innerText()
   } finally {
     await first.close()

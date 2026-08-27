@@ -122,10 +122,24 @@ export async function newChat(window: Page): Promise<void> {
   await expect(window.getByRole('textbox', { name: 'Message' })).toBeEnabled()
 }
 
-/** Type into the composer and send. Starts a conversation if none is open. */
+/**
+ * Type into the composer and send.
+ *
+ * Starts a conversation only when there genuinely is not one — the composer is
+ * also disabled while a model loads, and clicking "+ New chat" then would
+ * silently start a *second* conversation and lose the transcript under test.
+ */
 export async function send(window: Page, text: string): Promise<void> {
   const composer = window.getByRole('textbox', { name: 'Message' })
-  if (!(await composer.isEnabled())) await newChat(window)
+  const reason = window.locator('[data-testid="composer-disabled"]')
+
+  if (await reason.isVisible().catch(() => false)) {
+    const explanation = (await reason.innerText()).toLowerCase()
+    if (explanation.includes('new chat')) await newChat(window)
+  }
+
+  // Whatever the reason was, wait it out rather than typing into a dead box.
+  await expect(composer).toBeEnabled()
   await composer.fill(text)
   await composer.press('Enter')
 }

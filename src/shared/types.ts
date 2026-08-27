@@ -127,6 +127,8 @@ export interface GpuInfo {
   name: string
   memoryUsedMb: number
   memoryTotalMb: number
+  /** 0-100. The contract has always sent it; the app used to drop it. */
+  utilizationPct: number
 }
 
 /** What the poller pushes to the renderer. `unreachable` is ours, not the server's. */

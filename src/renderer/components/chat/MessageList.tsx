@@ -1,14 +1,18 @@
 import type { Conversation, Message } from '@shared/types'
 
 import { useAutoScroll } from '../../hooks/useAutoScroll'
+import { withDividers } from '../../lib/transcriptDividers'
 import { thinkingSeconds, type StreamBuffer } from '../../stores/useChatStore'
 import { JumpToLatest } from './JumpToLatest'
 import { MessageBubble } from './MessageBubble'
+import { ModelDivider } from './ModelDivider'
 
 interface MessageListProps {
   conversation: Conversation
   stream: StreamBuffer | null
   modelLabel: string
+  /** Catalog id -> display name, for message labels and dividers. */
+  displayName: (modelId: string) => string
   onRetry: (prompt: string) => void
   onRegenerate: (prompt: string) => void
 }
@@ -17,6 +21,7 @@ export function MessageList({
   conversation,
   stream,
   modelLabel,
+  displayName,
   onRetry,
   onRegenerate,
 }: MessageListProps) {
@@ -37,25 +42,41 @@ export function MessageList({
     <div className="relative flex-1 overflow-hidden">
       <div ref={ref} onScroll={onScroll} className="h-full overflow-y-auto px-6 py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          {visible.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              streaming={streamingFor(message, stream)}
-              modelLabel={message.modelId || modelLabel}
-              isLastAssistant={message.id === lastAssistantId}
-              onRetry={
-                message.error && stream
-                  ? () => onRetry(previousUserContent(visible, message))
-                  : undefined
-              }
-              onRegenerate={
-                message.id === lastAssistantId
-                  ? () => onRegenerate(previousUserContent(visible, message))
-                  : undefined
-              }
-            />
-          ))}
+          {withDividers(visible).map((item, index) => {
+            if (item.kind === 'divider') {
+              return (
+                <ModelDivider
+                  key={`divider-${item.modelId}-${index}`}
+                  label={displayName(item.modelId ?? '')}
+                />
+              )
+            }
+
+            const message = item.message
+            if (!message) return null
+
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                streaming={streamingFor(message, stream)}
+                // The model that produced *this* message, not whatever is active
+                // now — after a switch the transcript must still say who said what.
+                modelLabel={message.modelId ? displayName(message.modelId) : modelLabel}
+                isLastAssistant={message.id === lastAssistantId}
+                onRetry={
+                  message.error && stream
+                    ? () => onRetry(previousUserContent(visible, message))
+                    : undefined
+                }
+                onRegenerate={
+                  message.id === lastAssistantId
+                    ? () => onRegenerate(previousUserContent(visible, message))
+                    : undefined
+                }
+              />
+            )
+          })}
 
           {streamingUnpersisted && stream ? (
             <MessageBubble

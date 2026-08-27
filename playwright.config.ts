@@ -29,9 +29,19 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: isCI,
   reporter: isCI ? [['list'], ['html', { open: 'never' }]] : [['list']],
+  // Keep everything from every attempt, including attempts that a retry later
+  // masked. `retries: 1` in CI means a flake reports as "flaky" rather than
+  // "failed", and with failure-only artifacts the evidence for the attempt that
+  // actually broke would be discarded — leaving a known-intermittent test with
+  // nothing to diagnose it from. That happened once already, to A7.
+  preserveOutput: 'always',
   use: {
-    // A red CI run you cannot see is worse than none.
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    // `retain-on-first-failure`, not `retain-on-failure`: the latter keeps a
+    // trace only when the test *ends* failed, so a passing retry discards the
+    // trace of the attempt that broke — the only one worth having. And not
+    // `on-first-retry`, which traces the retry: that is the attempt that
+    // usually passes.
+    trace: 'retain-on-first-failure',
+    screenshot: 'on-first-failure',
   },
 })

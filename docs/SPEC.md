@@ -224,7 +224,8 @@ interface ServerState {
   activeModelId: string | null
   progressHint: string | null
   lastError: string | null
-  gpu: { index: number; name: string; memoryUsedMb: number; memoryTotalMb: number }[]
+  gpu: { index: number; name: string; memoryUsedMb: number
+         memoryTotalMb: number; utilizationPct: number }[]   // [] on Ollama
 }
 ```
 
@@ -269,15 +270,26 @@ conversation file must never crash the app — log it and skip the entry.
 
 ### 8.1 Model dropdown
 
-- Lists every model from `GET /admin/models`, with the active one marked.
+- Lists every model from `GET /admin/models`, with the active one marked. A model
+  with `available: false` is still selectable, but the dialog warns that the
+  weights must be fetched first and the load will take much longer.
 - Status pill next to the name: `ready` (green), `loading` (amber, animated),
   `idle` (grey), `error` (red), `unreachable` (grey outline).
 - Selecting a **different** model opens a confirmation dialog:
 
   > **Switch to Qwen 3.8 27B?**
-  > This unloads GLM 4.7 Flash from the GPU and loads Qwen 3.8 27B.
-  > Takes about 2 minutes. Any reply in progress will be cancelled.
+  > This unloads GLM 4.7 Flash and loads Qwen 3.8 27B.
+  > Takes about {estimatedLoadSeconds}. Any reply in progress will be cancelled.
   > `[Cancel]` `[Switch]`
+
+  **The duration is data, not copy.** It is `estimatedLoadSeconds` from the
+  catalog entry, which the server measures on the hardware actually in use — 10 s
+  and 12 s for the two Ollama models, against the ~2 minutes an earlier draft of
+  this section assumed from vLLM-on-H100 figures. The client renders whatever the
+  server reports and hardcodes nothing: a dialog promising two minutes before a
+  ten-second wait teaches people to distrust every estimate the app gives them.
+  If the advertised time is wrong, the fix is `estimated_load_seconds` in the
+  server's `models.yaml`, not a string here.
 
 - On confirm: `models:activate`, then the composer is disabled and a load banner
   appears above it showing elapsed time and `progressHint` from the server.
@@ -353,7 +365,7 @@ The MVP is done when all of these pass on a clean machine against a real VM.
 | A3 | Pressing Stop mid-stream halts token flow within 500 ms, keeps the partial text, and the server-side request is cancelled (verify vLLM logs show the abort) |
 | A4 | Switching the dropdown from GLM to Qwen shows the confirm dialog, disables the composer, shows elapsed-time progress, and re-enables within the advertised load window |
 | A5 | After a switch, a new message is answered by the new model and the assistant bubble is labelled with it |
-| A6 | Killing the vLLM process on the VM makes the app show `unreachable`/`error` within 60 s without crashing, and it recovers automatically once the model is back |
+| A6 | Killing the backend puts the app into `error`/`unreachable` without a crash, with honest state and friendly copy. Recovery from an unreachable *server* is automatic once it returns. Recovery from a *dead model* is one click in the dropdown — automatic restart is deliberately excluded by ADR-0005. |
 | A7 | Quitting and reopening the app restores the conversation list and the full transcript of the last conversation |
 | A8 | The API key is not present in plaintext anywhere under `userData` (grep the directory) and is not readable from the renderer (`window.api` exposes no key getter) |
 | A9 | Renderer DevTools shows zero network requests to the server origin |
@@ -365,6 +377,15 @@ Reasoning models emit reasoning before content: GLM 4.7 Flash on Ollama typicall
 streams a Thinking block for several seconds before the first content token.
 "Visible output" in A2 deliberately includes that block, because an app that shows
 nothing for several seconds reads as broken regardless of what it is doing.
+
+A6 covers two different deaths, and they surface at different speeds. A dead
+*model* is reported by the server itself, so the app sees `error` on its next
+poll — measured at 30 s against the real server. A dead *control plane* has to be
+inferred client-side, which takes up to 90 s: SPEC §9 polls every 30 s when
+settled and requires three consecutive failures. That is longer than the 60 s an
+earlier version of this criterion assumed. It is tracked as the M4 backoff item
+rather than fixed by changing §9 here, because shortening the interval or the
+failure count trades away the quiet period §9 exists to provide.
 
 ## 11. Performance targets
 
