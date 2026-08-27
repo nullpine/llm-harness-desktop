@@ -51,6 +51,16 @@ export const TITLE_MAX_LENGTH = 48
 
 // --- persistence ------------------------------------------------------------
 
+/**
+ * How long quitting waits for in-flight replies to be written.
+ *
+ * A conversation file is a few KB and an fsync is milliseconds, so this is
+ * roughly a thousandfold headroom and imperceptible in practice. On expiry the
+ * app exits anyway: a hung quit is worse than a lost message, and `atomicWrite`
+ * means the file on disk is whole either way.
+ */
+export const QUIT_PERSIST_DEADLINE_MS = 2_000
+
 /** Bumped when `settings.json` needs a migration. */
 export const SETTINGS_SCHEMA_VERSION = 1
 export const LOG_MAX_FILES = 5

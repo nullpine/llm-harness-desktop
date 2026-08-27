@@ -125,6 +125,23 @@ single-user app with a few hundred conversations. See
 A corrupt file is a warning in the log and a skipped entry in the list — never a
 failed startup.
 
+**The conversation file is the source of truth; `index.json` is a cache.** They are
+two separate atomic writes, so a process that dies between them leaves one of two
+states. The conversation file is written first, deliberately: the survivable failure
+is a complete transcript with a stale summary, never a summary promising a message
+the transcript does not contain. A stale entry is repaired lazily when the
+conversation is opened — a stale-but-valid index parses fine, so nothing else would
+notice it. This is a rule rather than a transaction because the cost then falls on
+the rare case: opening a conversation already reads the file, so the comparison is
+free and the correcting write happens only when something is actually wrong.
+
+**Quitting waits for in-flight replies.** `before-quit` aborts every live stream —
+the same path the Stop button uses, so the partial is persisted with
+`stopped: true` — and awaits those writes for up to `QUIT_PERSIST_DEADLINE_MS`
+before exiting. Without it the process could exit mid-write, and because
+`atomicWrite` never leaves a half-file the result was an intact conversation
+silently missing its last reply.
+
 ## Threat model (brief)
 
 | Threat | Handling |

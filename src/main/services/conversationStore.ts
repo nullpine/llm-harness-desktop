@@ -6,6 +6,14 @@
  * chosen now purely to keep a native module out of the Electron build for a
  * single-user app with a few hundred conversations.
  *
+ * **The conversation file is the source of truth; `index.json` is a cache.** They
+ * are two separate atomic writes, so a process that dies between them leaves one
+ * of two states — and the ordering below decides which. The conversation file is
+ * always written first, so the survivable failure is a complete transcript with a
+ * stale summary, never a summary promising a message the transcript lacks. A
+ * stale entry is repaired lazily when the conversation is opened, because a
+ * stale-but-valid index parses fine and nothing would otherwise notice.
+ *
  * **A damaged file must never stop the app starting.** That is acceptance A10,
  * and it is the property most of this file is about: a conversation that fails to
  * parse is a logged warning and a skipped entry, and an unreadable `index.json`
@@ -74,7 +82,39 @@ export class ConversationStore implements ConversationRepository {
       this.warn('refusing to read a conversation with an unsafe id', { id })
       return null
     }
-    return this.readConversation(id)
+
+    const conversation = await this.readConversation(id)
+    if (conversation) await this.reconcileIndex(conversation)
+    return conversation
+  }
+
+  /**
+   * Repair this conversation's index entry if the file disagrees with it.
+   *
+   * The window is a quit between the two writes in `appendMessage`. Correcting
+   * it here rather than with a transaction keeps the write path simple and puts
+   * the cost on the rare case: opening a conversation already reads the file, so
+   * the comparison is free and the write only happens when something is wrong.
+   */
+  private async reconcileIndex(conversation: Conversation): Promise<void> {
+    const index = await this.readIndex()
+    if (!index) return // A missing index is rebuilt wholesale elsewhere.
+
+    const entry = index.find((row) => row.id === conversation.id)
+    const summary = toSummary(conversation)
+    if (
+      entry &&
+      entry.title === summary.title &&
+      entry.updatedAt === summary.updatedAt &&
+      entry.modelId === summary.modelId
+    ) {
+      return
+    }
+
+    this.warn('index entry disagreed with the conversation file; refreshing it', {
+      id: conversation.id,
+    })
+    await this.writeIndex([...index.filter((row) => row.id !== conversation.id), summary])
   }
 
   async create(init: { title?: string | undefined; modelId: string }): Promise<Conversation> {
@@ -113,6 +153,9 @@ export class ConversationStore implements ConversationRepository {
       conversation.title = deriveTitle(conversation.messages) ?? UNTITLED
     }
 
+    // Transcript first, cache second. A kill between these two writes must leave
+    // a complete transcript with a stale summary — not a summary promising a
+    // message the transcript does not have.
     await this.writeConversation(conversation)
     await this.touchIndex(conversation)
   }

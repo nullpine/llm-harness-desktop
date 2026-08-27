@@ -9,6 +9,7 @@ import { join } from 'node:path'
 
 import { app, BrowserWindow, safeStorage } from 'electron'
 
+import { QUIT_PERSIST_DEADLINE_MS } from '@shared/constants'
 import { IPC } from '@shared/ipc'
 import { registerChatHandlers } from './ipc/chat.handlers'
 import { registerConversationHandlers } from './ipc/conversations.handlers'
@@ -101,7 +102,7 @@ async function main(): Promise<void> {
     logger,
     defaultModelId: () => poller.state.activeModelId ?? '',
   })
-  registerChatHandlers({
+  const chat = registerChatHandlers({
     client,
     conversations,
     logger,
@@ -139,6 +140,36 @@ async function main(): Promise<void> {
   app.on('window-all-closed', () => {
     poller.stop()
     if (process.platform !== 'darwin') app.quit()
+  })
+
+  // Quitting must not lose a reply the user watched arrive.
+  //
+  // Electron does not wait for async work on quit, and `chat:send` used to
+  // launch its stream untracked — so the process could exit before the assistant
+  // message was written. Because `atomicWrite` is tmp -> fsync -> rename, the
+  // result was not a corrupt file that the damaged-conversation path would catch:
+  // it was an intact, valid conversation silently missing the last reply.
+  let quitting = false
+  app.on('before-quit', (event) => {
+    // Guarded: without this a second Cmd-Q — or app.quit() from the flow below —
+    // would be trapped again and the app would never close.
+    if (quitting) return
+    quitting = true
+    event.preventDefault()
+
+    void (async () => {
+      poller.stop()
+      try {
+        const result = await chat.shutdown(QUIT_PERSIST_DEADLINE_MS)
+        if (result.aborted > 0) {
+          logger.info('saved in-flight replies before quitting', result)
+        }
+      } catch (cause) {
+        // Never let a failure here strand the user in an app that will not quit.
+        logger.error('failed to save in-flight replies before quitting', cause)
+      }
+      app.exit(0)
+    })()
   })
 }
 
