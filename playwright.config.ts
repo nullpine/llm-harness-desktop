@@ -16,6 +16,11 @@ const isCI = !!process.env.CI
 
 export default defineConfig({
   testDir: './e2e',
+  // Every launch mints a temp `userData` profile; these sweep them. See
+  // e2e/fixtures/profiles.ts for why it is a global sweep and not a delete in
+  // close().
+  globalSetup: './e2e/fixtures/profiles.ts',
+  globalTeardown: './e2e/fixtures/profiles.ts',
   // The mock's simulated activation is the slowest thing here, and Electron
   // takes a moment to boot on a cold CI runner.
   timeout: 60_000,

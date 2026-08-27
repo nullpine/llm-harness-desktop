@@ -187,17 +187,33 @@ Kept here so it stays out of the MVP. Roughly in the order it will matter.
     artifacts from failed attempts as well as the final one — but the flake itself
     was never reproduced, and `retries: 1` in CI means a recurrence stays invisible
     unless someone reads the artifacts. If it returns, the evidence is now there.
-17. The full e2e suite degrades on a long local run. Every spec passes in
-    isolation — `azure-states.spec.ts` runs its six tests in 1.6 min, `first-run`
-    its five in 2.4 s — but a full 43-test sequential run on this machine has taken
-    24 min to 2.7 h, with individual tests reporting 15–18 min *against a 60 s
-    test timeout*, failing a different three each time. Not disk (405 GB free),
-    not orphaned processes (zero afterwards), and not the first-launch binary scan
-    (it persists across runs). CI on a clean runner is currently the only
-    trustworthy full-suite gate. Worth finding before it costs someone a day:
-    start by giving each launch a `--disable-dev-shm-usage`-style constrained
-    profile, or by having the fixture clean up its temp `userData` unconditionally
-    (321 `harness-e2e-*` directories were left behind under `/var/folders`).
+17. The full e2e suite degrades on a long local run, and the cause is still
+    unknown. Every spec passes in isolation — `azure-states.spec.ts` runs its six
+    in 1.6 min, `first-run.spec.ts` its five in 2.4 s — but a full 43-test run on
+    one machine has taken 24 min to 2.7 h, with individual tests reporting 15–18
+    min *against a 60 s test timeout*, a different three failing each time. CI on
+    a clean runner does the same suite in ~7 min, 43/43, no retries.
+
+    **Ruled out, so nobody re-investigates them:**
+    - *Worker contention.* `workers: 1` and `fullyParallel: false` have been
+      pinned since the M1 e2e harness (`1f996ec`), and every slow run's own
+      header says `Running 43 tests using 1 worker`. Exactly one Electron app
+      was alive at a time. (The machine has 14 cores, so Playwright's default
+      would have been 7 — but the default was never in play.)
+    - *Disk.* 405 GB free.
+    - *Orphaned processes.* Zero after a run.
+    - *Memory, swap, CPU.* Nothing above 10% afterwards.
+    - *First-launch scanning of a freshly built binary.* It persists across runs.
+    - *The temp-profile leak.* Fixed now (see `e2e/fixtures/profiles.ts`), but it
+      was ~550 MB of idle directories, not a cause — and the slowness predates
+      the count getting large.
+
+    A test cannot exceed its own timeout by 17×, so the next place to look is the
+    timer/event loop of the Playwright process itself rather than anything in the
+    specs: run with `DEBUG=pw:api` and compare wall-clock against reported
+    durations, and check whether the reported duration is measuring something
+    other than the test.
+
 18. Derive the contract instead of duplicating it. FastAPI emits OpenAPI from the
     route definitions; publish that and generate the desktop's types from it. Replaces
     the byte-identical API-CONTRACT.md copies and their hash stamps — drift becomes
