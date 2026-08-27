@@ -1,6 +1,7 @@
 import type { Conversation, Message } from '@shared/types'
 
 import { useAutoScroll } from '../../hooks/useAutoScroll'
+import { offersRetry } from '../../lib/retry'
 import { withDividers } from '../../lib/transcriptDividers'
 import { thinkingSeconds, type StreamBuffer } from '../../stores/useChatStore'
 import { JumpToLatest } from './JumpToLatest'
@@ -65,7 +66,11 @@ export function MessageList({
                 modelLabel={message.modelId ? displayName(message.modelId) : modelLabel}
                 isLastAssistant={message.id === lastAssistantId}
                 onRetry={
-                  message.error && stream
+                  // Errored messages only — but *not* gated on a live stream.
+                  // `fail()` clears activeRequestId, so `stream` is null exactly
+                  // when a message has an error, which made this button
+                  // unreachable in the one case it exists for (SPEC §8.2).
+                  offersRetry(message)
                     ? () => onRetry(previousUserContent(visible, message))
                     : undefined
                 }

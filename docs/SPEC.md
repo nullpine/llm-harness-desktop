@@ -349,7 +349,18 @@ The main process runs one poller:
 - Every **30 s** when state is `ready`/`idle`/`error`
 - Every **2 s** while state is `loading` or `stopping`
 - Immediately on window focus, and immediately after any activation request
-- On 3 consecutive failures → state `unreachable`, back off to 60 s, keep retrying
+- On failure the cadence **escalates rather than waiting out another settled
+  interval**: retry after **5 s** on the first consecutive failure, **15 s** on the
+  second
+- On the **third** consecutive failure → state `unreachable`, back off to **60 s**
+  and stay there until it recovers
+
+Fast to detect, slow to nag. A flat 30 s took up to 90 s to confirm a dead control
+plane — three failures a full interval apart — which is outside A6's 60 s. Simply
+shortening the interval would have traded away the quiet period this exists to
+provide, so the escalation confirms quickly and *then* goes quiet: ~30 s to notice
+plus 20 s to confirm ≈ 50 s worst case, while a server that really is down is still
+polled only once a minute.
 
 Every state change is pushed to the renderer on `models:stateChanged`. The renderer
 never polls on its own.
@@ -381,11 +392,12 @@ nothing for several seconds reads as broken regardless of what it is doing.
 A6 covers two different deaths, and they surface at different speeds. A dead
 *model* is reported by the server itself, so the app sees `error` on its next
 poll — measured at 30 s against the real server. A dead *control plane* has to be
-inferred client-side, which takes up to 90 s: SPEC §9 polls every 30 s when
-settled and requires three consecutive failures. That is longer than the 60 s an
-earlier version of this criterion assumed. It is tracked as the M4 backoff item
-rather than fixed by changing §9 here, because shortening the interval or the
-failure count trades away the quiet period §9 exists to provide.
+inferred client-side, which takes ~50 s: up to 30 s to notice, then 5 s and 15 s
+to confirm, per §9's escalating backoff. Both are inside 60 s.
+
+That escalation was added in M4. Before it, §9 waited a full 30 s between each of
+the three failures, so the control-plane path took up to 90 s and missed the
+criterion.
 
 ## 11. Performance targets
 

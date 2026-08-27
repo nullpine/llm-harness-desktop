@@ -39,14 +39,34 @@ export interface ChatHandlerDeps {
   webContents: () => WebContents | null
 }
 
-/** In-flight streams, so `chat:abort` can reach the right one. */
+/** In-flight streams, so `chat:abort` — and quitting — can reach them. */
 interface InFlight {
   controller: AbortController
   conversationId: string
   messageId: string
+  /**
+   * The stream's own task. Held so shutdown can wait for the *persist* rather
+   * than merely for the abort to be requested: aborting stops the model, but
+   * the partial reply is written a few lines later.
+   */
+  task: Promise<void>
 }
 
-export function registerChatHandlers(deps: ChatHandlerDeps): void {
+export interface ChatLifecycle {
+  /**
+   * Stop every in-flight reply and wait for what arrived to reach disk.
+   *
+   * Deliberately does not wait for replies to *finish* — that could take
+   * minutes, and on a metered backend it would keep generating after the user
+   * asked to quit. Aborting is also what stops the model.
+   *
+   * Returns once every stream has settled or `deadlineMs` elapses, whichever is
+   * first. `settled: false` means the deadline won and something may be lost.
+   */
+  shutdown(deadlineMs: number): Promise<{ aborted: number; settled: boolean }>
+}
+
+export function registerChatHandlers(deps: ChatHandlerDeps): ChatLifecycle {
   const { logger } = deps
   const inFlight = new Map<string, InFlight>()
 
@@ -80,14 +100,11 @@ export function registerChatHandlers(deps: ChatHandlerDeps): void {
     const requestId = ulid()
     const controller = new AbortController()
     const assistantMessageId = ulid()
-    inFlight.set(requestId, {
-      controller,
-      conversationId: conversation.id,
-      messageId: assistantMessageId,
-    })
 
-    // 2. Everything past here is events. The invoke has already returned.
-    void streamReply({
+    // 2. Everything past here is events. The invoke has already returned — but
+    // the task is *tracked*, not fire-and-forget: an untracked `void` here is
+    // what let quitting kill a reply mid-write.
+    const task = streamReply({
       deps,
       requestId,
       assistantMessageId,
@@ -103,6 +120,14 @@ export function registerChatHandlers(deps: ChatHandlerDeps): void {
       controller,
       onSettled: () => inFlight.delete(requestId),
     })
+    void task
+
+    inFlight.set(requestId, {
+      controller,
+      conversationId: conversation.id,
+      messageId: assistantMessageId,
+      task,
+    })
 
     return { requestId }
   })
@@ -117,6 +142,39 @@ export function registerChatHandlers(deps: ChatHandlerDeps): void {
     }
     return { ok: true }
   })
+
+  return {
+    async shutdown(deadlineMs) {
+      const entries = [...inFlight.values()]
+      if (entries.length === 0) return { aborted: 0, settled: true }
+
+      logger.info('quitting with replies in flight; stopping and saving them', {
+        count: entries.length,
+      })
+
+      // Exactly what the Stop button does. Reusing it rather than writing a
+      // second save path is the point: two paths drift, and the one that only
+      // runs at quit is the one nobody notices has drifted.
+      for (const entry of entries) entry.controller.abort()
+
+      const settled = await Promise.race([
+        Promise.allSettled(entries.map((entry) => entry.task)).then(() => true),
+        new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => resolve(false), deadlineMs)
+          // Never hold the process open for the deadline itself.
+          timer.unref?.()
+        }),
+      ])
+
+      if (!settled) {
+        logger.error('quit deadline expired with replies still saving', {
+          deadlineMs,
+          remaining: inFlight.size,
+        })
+      }
+      return { aborted: entries.length, settled }
+    },
+  }
 }
 
 interface StreamArgs {

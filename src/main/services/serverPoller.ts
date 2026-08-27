@@ -5,14 +5,17 @@
  * — which means there is exactly one timer in the app rather than one per mounted
  * component, and the cadence can adapt without every caller agreeing.
  *
- * Cadence:
+ * Cadence — fast to detect, slow to nag:
  *   - 30 s when settled (`ready` / `idle` / `error`)
  *   - 2 s while an activation is in flight (`loading` / `stopping`)
+ *   - after the 1st failure retry in 5 s, after the 2nd in 15 s
+ *   - three consecutive failures → `unreachable`, then 60 s until it recovers
  *   - immediately on window focus and immediately after an activation request
- *   - three consecutive failures → `unreachable`, back off to 60 s, keep trying
  *
- * The back-off matters: a laptop that closed its lid on a dead server should not
- * spend the afternoon retrying every two seconds.
+ * The escalation exists because a flat 30 s took up to 90 s to surface a dead
+ * control plane, outside A6's 60 s. Confirming quickly and *then* going quiet
+ * gives ~50 s worst case without spending the afternoon retrying a server that
+ * really is down.
  */
 
 import {
@@ -20,6 +23,7 @@ import {
   POLL_INTERVAL_ACTIVE_MS,
   POLL_INTERVAL_IDLE_MS,
   POLL_INTERVAL_UNREACHABLE_MS,
+  POLL_RETRY_BACKOFF_MS,
 } from '@shared/constants'
 import type { ServerState } from '@shared/types'
 
@@ -108,12 +112,31 @@ export class ServerPoller {
   }
 
   private interval(): number {
+    // Given up: quiet, but never silent.
     if (this.consecutiveFailures >= POLL_FAILURES_BEFORE_UNREACHABLE) {
       return POLL_INTERVAL_UNREACHABLE_MS
     }
+
+    // Failing but not yet given up: confirm quickly rather than waiting out a
+    // full settled interval per attempt.
+    if (this.consecutiveFailures > 0) {
+      const step = POLL_RETRY_BACKOFF_MS[this.consecutiveFailures - 1]
+      if (step !== undefined) return step
+    }
+
     return this.current.state === 'loading' || this.current.state === 'stopping'
       ? POLL_INTERVAL_ACTIVE_MS
       : POLL_INTERVAL_IDLE_MS
+  }
+
+  /** The interval that would be used next. Exposed so a test can assert the sequence. */
+  get nextIntervalMs(): number {
+    return this.interval()
+  }
+
+  /** Force the reported state. Tests only — the poller otherwise owns this. */
+  setStateForTest(state: ServerState): void {
+    this.current = state
   }
 
   private publish(next: ServerState): void {
