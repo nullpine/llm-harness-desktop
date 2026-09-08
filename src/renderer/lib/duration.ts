@@ -7,6 +7,22 @@
  * ten-second wait teaches people to distrust every estimate the app gives.
  */
 
+/**
+ * Whether a switch involves no load at all.
+ *
+ * `0` is a real, honest value rather than a missing one: on the `remote_openai`
+ * backend the weights are already resident in whatever is serving — a RunPod pod,
+ * a hosted provider — so activation only verifies the model is offered and
+ * returns. The catalog says 0 because nothing loads.
+ *
+ * Distinct from an *unknown* estimate, which `describeSeconds` renders. Without
+ * this the dialog promises "about an unknown time" for something instantaneous,
+ * which reads as a fault.
+ */
+export function loadsInstantly(seconds: number): boolean {
+  return Number.isFinite(seconds) && seconds === 0
+}
+
 export function describeSeconds(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return 'an unknown time'
   if (seconds < 60) return `${Math.round(seconds)} seconds`

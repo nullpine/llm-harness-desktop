@@ -1,6 +1,6 @@
 import type { ModelInfo } from '@shared/types'
 
-import { describeSeconds } from '../../lib/duration'
+import { describeSeconds, loadsInstantly } from '../../lib/duration'
 import { Button } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
 
@@ -44,9 +44,22 @@ export function SwitchModelDialog({
 
         <p>
           {/* The duration is data, never copy: it is estimatedLoadSeconds from
-              the catalog, which the server measures on the hardware in use. */}
-          Takes about{' '}
-          <span data-testid="switch-duration">{describeSeconds(target.estimatedLoadSeconds)}</span>.
+              the catalog, which the server measures on the hardware in use. A
+              zero is not a missing number — it is a backend where the weights
+              are already resident and nothing loads. */}
+          {loadsInstantly(target.estimatedLoadSeconds) ? (
+            <span data-testid="switch-instant">
+              This is instant: the server already has this model resident.
+            </span>
+          ) : (
+            <>
+              Takes about{' '}
+              <span data-testid="switch-duration">
+                {describeSeconds(target.estimatedLoadSeconds)}
+              </span>
+              .
+            </>
+          )}
           {streaming ? ' Any reply in progress will be cancelled.' : ''}
         </p>
 
