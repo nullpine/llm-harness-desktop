@@ -114,6 +114,8 @@ interface ConversationRepository {
   appendMessage(id: string, m: Message): Promise<void>
   rename(id: string, title: string): Promise<void>
   delete(id: string): Promise<void>
+  /** Drop from the index; leave the file alone — a damaged file may be recoverable. */
+  forget(id: string): Promise<void>
 }
 ```
 

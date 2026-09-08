@@ -1,6 +1,6 @@
 {
   "name": "llm-harness-desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Desktop chat client for a privately hosted open-weights LLM",
   "license": "MIT",

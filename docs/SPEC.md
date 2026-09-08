@@ -42,6 +42,12 @@ Do not build these. If a task seems to require one, stop and raise it.
 - Auto-update (ship unsigned local builds for MVP)
 - Windows/Linux packaging polish — build them, but only macOS is a supported target
 
+Audited at v0.1.0: none of the above was built. The nearest things in the shipped
+app are deliberately *not* items on this list — assistant messages are labelled
+with the model that answered and a switch leaves a divider (A5), which is a record
+of what happened, not per-message model switching; and `docs/BACKLOG.md`'s Deferred
+section is where any of these go if they are ever wanted.
+
 ## 4. Platform & stack
 
 | Concern | Choice | Why |
